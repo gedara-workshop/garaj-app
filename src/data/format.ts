@@ -23,3 +23,12 @@ export const formatPhone = (phone: string) => {
   const m = phone.replace(/^\+/, "").match(/^94(\d{2})(\d{3})(\d{4})$/);
   return m ? `+94 ${m[1]} ${m[2]} ${m[3]}` : phone;
 };
+
+/**
+ * A Sri Lankan mobile number as typed ("077 123 4567", "771234567", "+94 77 123 4567")
+ * -> "+94771234567". Null if it isn't a mobile number, since codes go out by SMS.
+ */
+export const toLkMobile = (input: string) => {
+  const digits = input.replace(/\D/g, "").replace(/^94/, "").replace(/^0/, "");
+  return /^7\d{8}$/.test(digits) ? `+94${digits}` : null;
+};

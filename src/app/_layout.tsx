@@ -15,7 +15,7 @@ SplashScreen.preventAutoHideAsync();
 
 function Navigator() {
   const { scheme, colors } = useTheme();
-  const { isLoading } = useAuth();
+  const { session, isLoading } = useAuth();
 
   // Keep the splash up until the saved session is read, so signed-in people never see a flash of sign in.
   useEffect(() => {
@@ -28,9 +28,17 @@ function Navigator() {
     <>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors["surface-100"] } }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="vehicle/[id]" />
-        <Stack.Screen name="vehicle/new" options={{ presentation: "modal" }} />
+        {/* Signing in or out flips these guards and Expo Router moves to the first screen allowed. */}
+        <Stack.Protected guard={!!session}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="vehicle/[id]" />
+          <Stack.Screen name="vehicle/new" options={{ presentation: "modal" }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="welcome" />
+          <Stack.Screen name="sign-in/phone" />
+          <Stack.Screen name="sign-in/code" />
+        </Stack.Protected>
       </Stack>
     </>
   );
