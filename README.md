@@ -18,6 +18,7 @@ Needs Node 20.19.4 or newer (`.nvmrc` pins 24, so `nvm use` picks it).
 
 ```bash
 npm install
+cp .env.example .env.local   # then fill in the Supabase URL and publishable key
 npx expo start
 ```
 

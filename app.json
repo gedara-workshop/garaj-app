@@ -34,7 +34,10 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 120,
           "backgroundColor": "#f5f5f1",
-          "dark": { "image": "./assets/splash-icon.png", "backgroundColor": "#101312" }
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#101312"
+          }
         }
       ],
       [
@@ -43,7 +46,8 @@
           "photosPermission": "Garaj uses your photos so you can add a picture of your vehicle or a bill.",
           "cameraPermission": "Garaj uses the camera so you can snap your vehicle or a bill."
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true
