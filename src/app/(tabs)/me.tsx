@@ -1,13 +1,20 @@
+import { LogOut } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, ScrollView, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Button } from "@/components/Button";
 import { Txt } from "@/components/Txt";
+import { useAuth } from "@/data/AuthProvider";
+import { formatPhone } from "@/data/format";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const leadTimes = [7, 14, 30, 60];
 
 export default function Me() {
   const { colors } = useTheme();
+  const { session, signOut } = useAuth();
+  const user = session?.user;
+  const signedInAs = user?.phone ? formatPhone(user.phone) : user?.email;
   // Local only for now; these move to the user's profile once Supabase auth is in.
   const [leadDays, setLeadDays] = useState(30);
   const [weekBefore, setWeekBefore] = useState(true);
@@ -49,9 +56,22 @@ export default function Me() {
           </View>
         </View>
 
-        <Txt variant="caption">
-          Sign in, language and WhatsApp reminders land here next, once accounts are connected.
-        </Txt>
+        {user ? (
+          <View className="gap-2">
+            <Txt variant="heading">Account</Txt>
+            <View className="gap-3 rounded-md border border-line bg-surface-200 p-4">
+              {signedInAs ? (
+                <View className="gap-0.5">
+                  <Txt variant="caption">Signed in as</Txt>
+                  <Txt variant={user.phone ? "number" : "body"}>{signedInAs}</Txt>
+                </View>
+              ) : null}
+              <Button title="Sign out" kind="secondary" icon={LogOut} onPress={signOut} />
+            </View>
+          </View>
+        ) : null}
+
+        <Txt variant="caption">Language and WhatsApp reminders land here next.</Txt>
       </ScrollView>
     </SafeAreaView>
   );

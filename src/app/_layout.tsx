@@ -7,6 +7,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { AuthProvider, useAuth } from "@/data/AuthProvider";
 import { GarageProvider } from "@/data/GarageProvider";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
@@ -14,6 +15,15 @@ SplashScreen.preventAutoHideAsync();
 
 function Navigator() {
   const { scheme, colors } = useTheme();
+  const { isLoading } = useAuth();
+
+  // Keep the splash up until the saved session is read, so signed-in people never see a flash of sign in.
+  useEffect(() => {
+    if (!isLoading) SplashScreen.hideAsync();
+  }, [isLoading]);
+
+  if (isLoading) return null;
+
   return (
     <>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
@@ -38,17 +48,15 @@ export default function RootLayout() {
     NotoSansSinhala_400Regular,
   });
 
-  useEffect(() => {
-    if (loaded || error) SplashScreen.hideAsync();
-  }, [loaded, error]);
-
   if (!loaded && !error) return null;
 
   return (
     <ThemeProvider>
-      <GarageProvider>
-        <Navigator />
-      </GarageProvider>
+      <AuthProvider>
+        <GarageProvider>
+          <Navigator />
+        </GarageProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

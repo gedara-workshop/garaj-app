@@ -17,3 +17,9 @@ export const formatDate = (iso: string, withYear = true) => {
 
 export const plural = (n: number, one: string, many = `${one}s`) =>
   `${formatNumber(n)} ${Math.abs(n) === 1 ? one : many}`;
+
+/** "94771234567" or "+94771234567" -> "+94 77 123 4567". Other numbers come back as given. */
+export const formatPhone = (phone: string) => {
+  const m = phone.replace(/^\+/, "").match(/^94(\d{2})(\d{3})(\d{4})$/);
+  return m ? `+94 ${m[1]} ${m[2]} ${m[3]}` : phone;
+};
