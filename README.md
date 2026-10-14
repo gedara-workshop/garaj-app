@@ -24,6 +24,10 @@ npx expo start
 
 Then press `i` for the iOS simulator, `a` for Android, or scan the QR code with Expo Go.
 
+To test Google sign in on a phone with Expo Go, start with `npx expo start --tunnel`. Supabase rejects redirect URLs whose host is an IP address, and Expo Go's normal LAN URL (`exp://192.168.x.x:8081`) is one, so Google sign in would land on the Site URL instead.
+
+Sign in on the free Text.lk demo: codes aren't really delivered, but each message (with its code) shows in the Text.lk dashboard under Reports > All Messages.
+
 Checks: `npm run typecheck`.
 
 ## What works now (week 1)
