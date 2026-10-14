@@ -10,6 +10,9 @@ const colors = Object.fromEntries(
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
+  // Web only: with the default "media", NativeWind throws on load when its stylesheet arrives
+  // after the JS. "class" still follows the system (no `dark` class is ever set), and native ignores it.
+  darkMode: "class",
   theme: {
     extend: {
       colors,
