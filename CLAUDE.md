@@ -17,6 +17,8 @@ Garaj is a vehicle paperwork and service tracker for Sri Lanka, on Android and i
 - **Service records as legal proof:** on hold. Records are for the owner's own use, not certified history.
 - **Snap a bill:** the AI hook. Photo of a bill, AI fills in the entry, the user checks and saves. Fields the AI is unsure of are flagged amber, never silently saved.
 - **Reminders:** 30 days before by default, again 7 days before, and on the day. WhatsApp reminders later.
+- **Sign in:** phone number with an SMS code, plus Google. Apple sign-in comes with the iPhone App Store launch (Apple requires it on iOS when Google is offered). Each method creates its own account for now: phone and Google are not linked, so a "link sign-in methods" option in Me is needed before launch.
+- **Launch:** build for Android and iPhone from day one. Share with iPhone testers through the web build or Expo Go. Buy the Apple Developer membership (US$99 a year) only when the demand test passes and the app is close to submission. Google Play is US$25 once; new personal accounts may need a 12-tester, 14-day closed test first.
 - **Business model:** free for 1 to 2 vehicles, then a small monthly fee per extra vehicle. Families stay free, fleets pay.
 - **Demand test first:** the landing page (`gedara-workshop/garaj-landing`, live at garaj-landing.vercel.app, signups in Formspree, Vercel Analytics) runs a 2-week test. Go signal: 50+ signups or 5%+ of visitors signing up.
 
@@ -128,7 +130,7 @@ Screens only call `useGarage()`. Today it is in-memory sample data. Next it beco
 
 ### Planned flows
 
-- **Auth:** phone OTP via Supabase (SMS fits Sri Lanka better than email).
+- **Auth:** phone OTP via Supabase (SMS fits Sri Lanka better than email). Codes are sent through Text.lk (about Rs 0.64 per SMS) using Supabase's Send SMS hook, a small Edge Function, since local gateways aren't built into Supabase. Google uses the browser OAuth flow (`expo-web-browser`), which works in Expo Go; switch to a native Google SDK later only if it's worth it.
 - **Reminders:** schedule local notifications with `expo-notifications` from renewal dates, and keep due dates in the database so they can be rescheduled after a reinstall. Ask for permission on a custom "Turn on reminders" screen first, then the system prompt.
 - **Snap a bill:** camera photo, then compress, then upload to the `bills` bucket, then a Supabase Edge Function calls a vision model with a fixed schema, then Zod-validate the response, then a review screen with low-confidence fields flagged. The API key lives only in the Edge Function. Also offer "Enter it manually" and handle blurry photos.
 - **Offline:** queue failed saves locally and retry; full sync later if needed.
@@ -137,13 +139,13 @@ Screens only call `useGarage()`. Today it is in-memory sample data. Next it beco
 ## Status and roadmap
 
 - **Week 1 (done):** project setup, theme, components, Home, Vehicle detail, Add vehicle, Vehicles, Costs, Me (local settings), sample data, schema.
-- **Week 2:** Supabase project, phone sign in, replace GarageProvider with real persistence, photo upload, renewals CRUD.
+- **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence, photo upload, renewals CRUD.
 - **Week 3:** Snap a bill (Edge Function + review screen), fuel and service logging, cost per km.
-- **Week 4:** reminders and notification prompt, empty and error states, Sinhala strings, EAS builds, Play Store and App Store listings.
+- **Week 4:** reminders and notification prompt, empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
 
 Designed but not built yet: Welcome, Sign in (OTP), Home empty state (basic version exists), Turn on reminders, Vehicle options sheet (edit, change photo, update odometer, sold, delete), Snap a bill review, Bill could not be read / offline, Sinhala Home, dark mode variants (dark already works through tokens).
 
-Known gaps: no three-wheeler icon in Lucide (uses the car icon for now), "Snap a bill" is a placeholder alert, Me settings aren't persisted, Tamil font not loaded, ESLint not configured yet.
+Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lucide (uses the car icon for now), "Snap a bill" is a placeholder alert, Me settings aren't persisted, Tamil font not loaded, ESLint not configured yet.
 
 ## Working rules
 
