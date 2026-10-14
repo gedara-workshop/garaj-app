@@ -14,6 +14,8 @@ Part of [Gedara Workshop](https://github.com/gedara-workshop). Landing page: [ga
 
 ## Run it
 
+Needs Node 20.19.4 or newer (`.nvmrc` pins 24, so `nvm use` picks it).
+
 ```bash
 npm install
 npx expo start
