@@ -6,12 +6,15 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/data/AuthProvider";
 import { GarageProvider } from "@/data/GarageProvider";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 SplashScreen.preventAutoHideAsync();
+// On web, Google sign in returns to a pop-up running this app: hand the result back to the opener.
+WebBrowser.maybeCompleteAuthSession();
 
 function Navigator() {
   const { scheme, colors } = useTheme();

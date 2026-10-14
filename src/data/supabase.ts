@@ -13,13 +13,15 @@ if (!url || !key) {
 }
 
 // The session lives in expo-sqlite's localStorage so people stay signed in between launches.
-// There is no URL to read a session from on a phone, hence detectSessionInUrl: false.
+// Google sign in hands back a one-time code (PKCE) that googleSignIn.ts swaps for a session
+// itself, hence detectSessionInUrl: false.
 export const supabase = createClient(url, key, {
   auth: {
     storage: localStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: "pkce",
   },
 });
 

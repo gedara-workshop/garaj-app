@@ -47,7 +47,8 @@
           "cameraPermission": "Garaj uses the camera so you can snap your vehicle or a bill."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

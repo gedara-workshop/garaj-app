@@ -1,10 +1,13 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Bell, Camera, ChartLine, Smartphone, type LucideIcon } from "lucide-react-native";
+import { useState } from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { GoogleLogo } from "@/components/GoogleLogo";
 import { Txt } from "@/components/Txt";
+import { signInWithGoogle } from "@/data/googleSignIn";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const features: { icon: LucideIcon; title: string; body: string }[] = [
@@ -27,6 +30,22 @@ const features: { icon: LucideIcon; title: string; body: string }[] = [
 
 export default function Welcome() {
   const { colors } = useTheme();
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function continueWithGoogle() {
+    setError("");
+    setGoogleBusy(true);
+    try {
+      // On success the sign-in gate swaps Welcome for the app.
+      await signInWithGoogle();
+    } catch (e) {
+      console.warn("Google sign in failed", e);
+      setError("Google sign in didn't finish. Try again, or use your phone number.");
+    } finally {
+      setGoogleBusy(false);
+    }
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-surface-100">
@@ -58,7 +77,19 @@ export default function Welcome() {
         </View>
 
         <View className="mt-auto gap-3 pt-8">
+          {error ? (
+            <Txt accessibilityRole="alert" className="font-inter-medium text-[13px] text-due">
+              {error}
+            </Txt>
+          ) : null}
           <Button title="Continue with phone number" icon={Smartphone} onPress={() => router.push("/sign-in/phone")} />
+          <Button
+            title={googleBusy ? "Opening Google..." : "Continue with Google"}
+            kind="secondary"
+            leading={<GoogleLogo />}
+            onPress={continueWithGoogle}
+            disabled={googleBusy}
+          />
         </View>
       </View>
     </SafeAreaView>

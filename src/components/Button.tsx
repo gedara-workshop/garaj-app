@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { Pressable, Text, type PressableProps } from "react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import { cn } from "./cn";
@@ -21,9 +22,17 @@ export function Button({
   title,
   kind = "primary",
   icon: Icon,
+  leading,
   className = "",
   ...props
-}: PressableProps & { title: string; kind?: Kind; icon?: LucideIcon; className?: string }) {
+}: PressableProps & {
+  title: string;
+  kind?: Kind;
+  icon?: LucideIcon;
+  /** Anything that isn't a Lucide icon, like a brand logo. */
+  leading?: ReactNode;
+  className?: string;
+}) {
   const { colors } = useTheme();
   return (
     <Pressable
@@ -36,7 +45,7 @@ export function Button({
         className
       )}
     >
-      {Icon ? <Icon size={18} color={colors[iconColor[kind]]} strokeWidth={2} /> : null}
+      {Icon ? <Icon size={18} color={colors[iconColor[kind]]} strokeWidth={2} /> : leading}
       <Text className={`font-inter-semibold text-[15px] ${label[kind]}`}>{title}</Text>
     </Pressable>
   );
