@@ -75,7 +75,8 @@ export default function AddVehicle() {
         [
           ...(licenseDate ? [{ kind: "revenue_license" as const, expiresOn: licenseDate }] : []),
           ...(insuranceDate ? [{ kind: "insurance" as const, expiresOn: insuranceDate }] : []),
-        ]
+        ],
+        photo
       );
       router.replace({ pathname: "/vehicle/[id]", params: { id: vehicle.id } });
     } catch {

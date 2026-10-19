@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { Alert } from "react-native";
 import { useAuth } from "./AuthProvider";
+import { signPhotoPaths, uploadVehiclePhoto } from "./photos";
 import { renewedExpiry } from "./rules";
 import { supabase } from "./supabase";
 import type { FuelType, LogRecord, RecordKind, Renewal, RenewalKind, ServiceItem, Vehicle, VehicleType } from "./types";
@@ -17,7 +18,11 @@ type Garage = {
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
-  addVehicle: (v: Omit<Vehicle, "id" | "photo">, renewals?: Omit<Renewal, "id" | "vehicleId">[]) => Promise<Vehicle>;
+  addVehicle: (
+    v: Omit<Vehicle, "id" | "photo">,
+    renewals?: Omit<Renewal, "id" | "vehicleId">[],
+    photoUri?: string | null
+  ) => Promise<Vehicle>;
   markRenewed: (renewalId: string) => void;
 };
 
@@ -51,7 +56,7 @@ type RecordRow = {
   amount_lkr: number | string;
 };
 
-const toVehicle = (r: VehicleRow): Vehicle => ({
+const toVehicle = (r: VehicleRow, photoUrl?: string): Vehicle => ({
   id: r.id,
   type: r.type,
   make: r.make,
@@ -63,7 +68,8 @@ const toVehicle = (r: VehicleRow): Vehicle => ({
   plate: r.plate,
   odometerKm: r.odometer_km,
   odometerUpdatedAt: r.odometer_updated_at,
-  photo: null, // photo_path becomes a signed URL once photo upload lands
+  // cacheKey is the object path, so a fresh signed link doesn't download the same photo again.
+  photo: r.photo_path && photoUrl ? { uri: photoUrl, cacheKey: r.photo_path } : null,
 });
 
 const toRenewal = (r: RenewalRow): Renewal => ({
@@ -115,9 +121,12 @@ async function fetchGarage(userId: string): Promise<GarageData> {
   const failed = [vehicles, renewals, serviceItems, records].find((r) => r.error);
   if (failed?.error) throw failed.error;
 
+  const vehicleRows = vehicles.data as VehicleRow[];
+  const photoUrls = await signPhotoPaths(vehicleRows.flatMap((v) => (v.photo_path ? [v.photo_path] : [])));
+
   return {
     garageId,
-    vehicles: (vehicles.data as VehicleRow[]).map(toVehicle),
+    vehicles: vehicleRows.map((v) => toVehicle(v, v.photo_path ? photoUrls.get(v.photo_path) : undefined)),
     renewals: (renewals.data as RenewalRow[]).map(toRenewal),
     serviceItems: (serviceItems.data as ServiceItemRow[]).map(toServiceItem),
     records: (records.data as RecordRow[]).map(toRecord),
@@ -144,7 +153,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
   }, [userId, queryClient]);
 
   const addVehicle = useCallback<Garage["addVehicle"]>(
-    async (v, newRenewals = []) => {
+    async (v, newRenewals = [], photoUri) => {
       const garageId = query.data?.garageId;
       if (!garageId) throw new Error("Your garage hasn't loaded yet.");
 
@@ -182,6 +191,17 @@ export function GarageProvider({ children }: { children: ReactNode }) {
           // Don't leave a vehicle behind without the dates the person typed in.
           await supabase.from("vehicles").delete().eq("id", vehicle.id);
           throw error;
+        }
+      }
+
+      if (photoUri) {
+        // The vehicle is saved either way; a failed photo only costs the photo.
+        try {
+          const path = await uploadVehiclePhoto(garageId, vehicle.id, photoUri);
+          const { error } = await supabase.from("vehicles").update({ photo_path: path }).eq("id", vehicle.id);
+          if (error) throw error;
+        } catch {
+          Alert.alert("Saved without the photo", "The photo didn't upload. Check your connection and add it again later.");
         }
       }
 

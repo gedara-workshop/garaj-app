@@ -135,18 +135,18 @@ Screens only call `useGarage()`. It loads the signed-in person's garage from Sup
 - **Snap a bill:** camera photo, then compress, then upload to the `bills` bucket, then a Supabase Edge Function calls a vision model with a fixed schema, then Zod-validate the response, then a review screen with low-confidence fields flagged. The API key lives only in the Edge Function. Also offer "Enter it manually" and handle blurry photos.
 - **Sign-in setup (live):** the `send-sms` Edge Function (`supabase/functions/send-sms`) is the Supabase Send SMS hook; secrets `SEND_SMS_HOOK_SECRET`, `TEXTLK_API_TOKEN`, `TEXTLK_SENDER_ID` (`TextLKDemo` until a "Garaj" sender ID is approved). Redeploy with `npx supabase functions deploy send-sms --no-verify-jwt --project-ref dtxhezxengwkjyktaxxm`. Google uses PKCE (`src/data/googleSignIn.ts`); Redirect URLs allow `garaj://**`, `exp://**` and `http://localhost:8081/**`. Supabase rejects redirect URLs with an IP host, so test Google in Expo Go with `npx expo start --tunnel`.
 - **Offline:** queue failed saves locally and retry; full sync later if needed.
-- **Photos:** compress to about 1200px wide before upload.
+- **Photos (live):** `src/data/photos.ts` shrinks to 1200px wide JPEG (`expo-image-manipulator`), uploads to the private `vehicle-photos` bucket at `<garage_id>/<vehicle_id>-<timestamp>.jpg`, and the garage query turns `photo_path` into a signed link (cacheKey = path). Migrations are pushed with `npx supabase db push --linked` (project is linked).
 
 ## Status and roadmap
 
 - **Week 1 (done):** project setup, theme, components, Home, Vehicle detail, Add vehicle, Vehicles, Costs, Me (local settings), sample data, schema.
-- **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence (done), photo upload, renewals CRUD.
+- **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence (done), photo upload (done), renewals CRUD.
 - **Week 3:** Snap a bill (Edge Function + review screen), fuel and service logging, cost per km.
 - **Week 4:** reminders and notification prompt, empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
 
 Designed but not built yet: Welcome, Sign in (OTP), Home empty state (basic version exists), Turn on reminders, Vehicle options sheet (edit, change photo, update odometer, sold, delete), Snap a bill review, Bill could not be read / offline, Sinhala Home, dark mode variants (dark already works through tokens).
 
-Known gaps: phone and Google accounts aren't linked, vehicle photos aren't saved yet (picked but dropped until photo upload lands), no three-wheeler icon in Lucide (uses the car icon for now), "Snap a bill" is a placeholder alert, Me settings aren't persisted, Tamil font not loaded, ESLint not configured yet.
+Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lucide (uses the car icon for now), "Snap a bill" is a placeholder alert, Me settings aren't persisted, Tamil font not loaded, ESLint not configured yet.
 
 ## Working rules
 
