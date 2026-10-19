@@ -33,6 +33,7 @@ export default function AddVehicle() {
   const [licenseDate, setLicenseDate] = useState("");
   const [insuranceDate, setInsuranceDate] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   async function pickPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -44,33 +45,44 @@ export default function AddVehicle() {
     if (!result.canceled) setPhoto(result.assets[0].uri);
   }
 
-  function save() {
+  async function save() {
     const km = Number(odometer.replace(/[^0-9]/g, ""));
     if (!make.trim() || !model.trim()) return setError("Add the make and model, like Toyota Corolla.");
     if (!plate.trim()) return setError("Add the number plate so you can tell your vehicles apart.");
+    if (province.trim() && !/^[A-Za-z]{2}$/.test(province.trim())) return setError("The province is two letters, like WP.");
+    if (year && (Number(year) < 1950 || Number(year) > new Date().getFullYear() + 1)) {
+      return setError("Write the year in full, like 2015.");
+    }
     for (const d of [licenseDate, insuranceDate]) {
       if (d && !isoDate.test(d)) return setError("Write renewal dates as YYYY-MM-DD, like 2026-10-25.");
     }
 
-    const vehicle = addVehicle(
-      {
-        type,
-        make: make.trim(),
-        model: model.trim(),
-        year: year ? Number(year) : undefined,
-        fuel,
-        province: province.trim().toUpperCase() || undefined,
-        plate: plate.trim().toUpperCase(),
-        odometerKm: km || 0,
-        odometerUpdatedAt: new Date().toISOString().slice(0, 10),
-        photo: photo ? { uri: photo } : null,
-      },
-      [
-        ...(licenseDate ? [{ kind: "revenue_license" as const, expiresOn: licenseDate }] : []),
-        ...(insuranceDate ? [{ kind: "insurance" as const, expiresOn: insuranceDate }] : []),
-      ]
-    );
-    router.replace({ pathname: "/vehicle/[id]", params: { id: vehicle.id } });
+    setError("");
+    setSaving(true);
+    try {
+      const vehicle = await addVehicle(
+        {
+          type,
+          make: make.trim(),
+          model: model.trim(),
+          year: year ? Number(year) : undefined,
+          fuel,
+          province: province.trim().toUpperCase() || undefined,
+          plate: plate.trim().toUpperCase(),
+          odometerKm: km || 0,
+          odometerUpdatedAt: new Date().toISOString().slice(0, 10),
+        },
+        [
+          ...(licenseDate ? [{ kind: "revenue_license" as const, expiresOn: licenseDate }] : []),
+          ...(insuranceDate ? [{ kind: "insurance" as const, expiresOn: insuranceDate }] : []),
+        ]
+      );
+      router.replace({ pathname: "/vehicle/[id]", params: { id: vehicle.id } });
+    } catch {
+      setError("Couldn't save the vehicle. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -185,7 +197,7 @@ export default function AddVehicle() {
               {error}
             </Txt>
           ) : null}
-          <Button title="Save vehicle" onPress={save} />
+          <Button title={saving ? "Saving..." : "Save vehicle"} onPress={save} disabled={saving} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { Bell, Camera, Plus } from "lucide-react-native";
-import { Alert, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { RenewalTicket } from "@/components/RenewalTicket";
@@ -13,10 +13,26 @@ import { renewalStatus, sortRenewals } from "@/data/rules";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export default function Home() {
-  const { vehicles, renewals, serviceItems, records } = useGarage();
+  const { vehicles, renewals, serviceItems, records, isLoading, error, refetch } = useGarage();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
 
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-surface-100">
+        <ActivityIndicator color={colors.brand} accessibilityLabel="Loading your garage" />
+      </View>
+    );
+  }
+  if (error && vehicles.length === 0) {
+    return (
+      <SafeAreaView edges={["top"]} className="flex-1 items-center justify-center gap-4 bg-surface-100 px-6">
+        <Txt variant="heading">Couldn&apos;t load your garage</Txt>
+        <Txt className="text-center text-ink-muted">Check your connection and try again.</Txt>
+        <Button title="Try again" onPress={refetch} />
+      </SafeAreaView>
+    );
+  }
   if (vehicles.length === 0) return <EmptyHome />;
 
   const byVehicle = (id: string) => ({

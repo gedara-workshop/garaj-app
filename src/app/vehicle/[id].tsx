@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { PhotoScrim } from "@/components/PhotoScrim";
@@ -20,9 +20,17 @@ import { useTheme } from "@/theme/ThemeProvider";
 
 export default function VehicleDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { vehicles, renewals, serviceItems, records, markRenewed } = useGarage();
+  const { vehicles, renewals, serviceItems, records, markRenewed, isLoading } = useGarage();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-surface-100">
+        <ActivityIndicator color={colors.brand} accessibilityLabel="Loading vehicle" />
+      </View>
+    );
+  }
 
   const vehicle = vehicles.find((v) => v.id === id);
   if (!vehicle) {

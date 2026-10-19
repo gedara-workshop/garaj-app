@@ -29,6 +29,13 @@ export function serviceProgress(item: ServiceItem, odometerKm: number) {
   return { remainingKm, share, status };
 }
 
+/** "Mark renewed": a year on from whichever is later, today or the old expiry. */
+export function renewedExpiry(r: Renewal, today = new Date()) {
+  const base = new Date(Math.max(today.getTime(), new Date(r.expiresOn).getTime()));
+  base.setFullYear(base.getFullYear() + 1);
+  return base.toISOString().slice(0, 10);
+}
+
 export const renewalLabel: Record<RenewalKind, string> = {
   revenue_license: "Revenue license",
   insurance: "Insurance",

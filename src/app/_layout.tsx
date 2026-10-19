@@ -2,6 +2,7 @@ import "../../global.css";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from "@expo-google-fonts/inter";
 import { JetBrainsMono_600SemiBold, JetBrainsMono_700Bold } from "@expo-google-fonts/jetbrains-mono";
 import { NotoSansSinhala_400Regular } from "@expo-google-fonts/noto-sans-sinhala";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -15,6 +16,8 @@ import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 SplashScreen.preventAutoHideAsync();
 // On web, Google sign in returns to a pop-up running this app: hand the result back to the opener.
 WebBrowser.maybeCompleteAuthSession();
+
+const queryClient = new QueryClient();
 
 function Navigator() {
   const { scheme, colors } = useTheme();
@@ -63,11 +66,13 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <GarageProvider>
-          <Navigator />
-        </GarageProvider>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <GarageProvider>
+            <Navigator />
+          </GarageProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

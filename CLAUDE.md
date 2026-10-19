@@ -109,8 +109,8 @@ src/
     types.ts           Vehicle, Renewal, ServiceItem, LogRecord
     rules.ts           status thresholds and sorting (single place for business rules)
     format.ts          numbers, LKR, dates
-    sample.ts          sample garage (Dinal's real vehicles), dates relative to today
-    GarageProvider.tsx in-memory store, the only thing screens talk to
+    sample.ts          sample garage (Dinal's real vehicles), dates relative to today; no longer loaded by the app
+    GarageProvider.tsx Supabase through TanStack Query, the only thing screens talk to
   theme/               token-names.js (shared with tailwind.config.js), tokens.ts, ThemeProvider.tsx
 supabase/migrations/   database schema
 assets/                icons, splash, sample vehicle photos
@@ -118,7 +118,7 @@ assets/                icons, splash, sample vehicle photos
 
 ### Data flow
 
-Screens only call `useGarage()`. Today it is in-memory sample data. Next it becomes Supabase queries through TanStack Query, behind the same hook shape, so screens don't change. Keep business rules (thresholds, sorting, renewal roll-forward) in `src/data/rules.ts`, not in screens.
+Screens only call `useGarage()`. It loads the signed-in person's garage from Supabase with one TanStack Query (key `["garage", userId]`) and writes straight to Supabase, refetching after each save; "Mark renewed" updates optimistically. Keep this hook shape so screens don't change. Keep business rules (thresholds, sorting, renewal roll-forward) in `src/data/rules.ts`, not in screens.
 
 ### Data model (Supabase, `supabase/migrations/0001_garaj_init.sql`)
 
@@ -140,13 +140,13 @@ Screens only call `useGarage()`. Today it is in-memory sample data. Next it beco
 ## Status and roadmap
 
 - **Week 1 (done):** project setup, theme, components, Home, Vehicle detail, Add vehicle, Vehicles, Costs, Me (local settings), sample data, schema.
-- **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence, photo upload, renewals CRUD.
+- **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence (done), photo upload, renewals CRUD.
 - **Week 3:** Snap a bill (Edge Function + review screen), fuel and service logging, cost per km.
 - **Week 4:** reminders and notification prompt, empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
 
 Designed but not built yet: Welcome, Sign in (OTP), Home empty state (basic version exists), Turn on reminders, Vehicle options sheet (edit, change photo, update odometer, sold, delete), Snap a bill review, Bill could not be read / offline, Sinhala Home, dark mode variants (dark already works through tokens).
 
-Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lucide (uses the car icon for now), "Snap a bill" is a placeholder alert, Me settings aren't persisted, Tamil font not loaded, ESLint not configured yet.
+Known gaps: phone and Google accounts aren't linked, vehicle photos aren't saved yet (picked but dropped until photo upload lands), no three-wheeler icon in Lucide (uses the car icon for now), "Snap a bill" is a placeholder alert, Me settings aren't persisted, Tamil font not loaded, ESLint not configured yet.
 
 ## Working rules
 
