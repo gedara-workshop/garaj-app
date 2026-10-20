@@ -1,5 +1,10 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "ClaudeInChromeDomain(127.0.0.1:8098)"
+    ]
   }
 }
