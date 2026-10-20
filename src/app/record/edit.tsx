@@ -4,10 +4,11 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
-import { Chip, Field } from "@/components/FormField";
+import { CheckThis, Chip, Field } from "@/components/FormField";
 import { Plate } from "@/components/Plate";
 import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
+import type { BillDraft, DraftField } from "@/data/bill";
 import { useGarage } from "@/data/GarageProvider";
 import { formatNumber, isIsoDate, parseAmount, todayIso } from "@/data/format";
 import type { RecordKind } from "@/data/types";
@@ -20,9 +21,12 @@ const kinds: { kind: RecordKind; label: string; example: string }[] = [
   { kind: "other", label: "Other", example: "Car wash" },
 ];
 
-/** Add a log entry (?vehicleId=) or edit one (?id=). */
+/** Add a log entry (?vehicleId=), edit one (?id=), or check one read from a bill (?vehicleId=&draft=). */
 export default function EditRecord() {
-  const { id, vehicleId: vehicleParam } = useLocalSearchParams<{ id?: string; vehicleId?: string }>();
+  const params = useLocalSearchParams<{ id?: string; vehicleId?: string; draft?: string }>();
+  const { id, vehicleId: vehicleParam } = params;
+  const [draft] = useState<BillDraft | undefined>(() => (params.draft ? JSON.parse(params.draft) : undefined));
+  const [flagged, setFlagged] = useState<DraftField[]>(draft?.flagged ?? []);
   const { vehicles, records, serviceItems, saveRecord, deleteRecord } = useGarage();
   const { colors } = useTheme();
 
@@ -30,13 +34,14 @@ export default function EditRecord() {
   const vehicle = vehicles.find((v) => v.id === (existing?.vehicleId ?? vehicleParam));
   const items = serviceItems.filter((s) => s.vehicleId === vehicle?.id);
 
-  const [kind, setKind] = useState<RecordKind>(existing?.kind ?? "fuel");
-  const [title, setTitle] = useState(existing && existing.kind !== "fuel" ? existing.title : "");
-  const [litres, setLitres] = useState(existing?.litres ? String(existing.litres) : "");
-  const [amount, setAmount] = useState(existing ? formatNumber(existing.amountLkr) : "");
-  const [km, setKm] = useState(existing?.odometerKm ? formatNumber(existing.odometerKm) : "");
-  const [place, setPlace] = useState(existing?.place ?? "");
-  const [date, setDate] = useState(existing?.date ?? todayIso());
+  const start = existing ?? draft;
+  const [kind, setKind] = useState<RecordKind>(start?.kind ?? "fuel");
+  const [title, setTitle] = useState(start?.title && start.kind !== "fuel" ? start.title : "");
+  const [litres, setLitres] = useState(start?.litres ? String(start.litres) : "");
+  const [amount, setAmount] = useState(start?.amountLkr !== undefined ? formatNumber(start.amountLkr) : "");
+  const [km, setKm] = useState(start?.odometerKm ? formatNumber(start.odometerKm) : "");
+  const [place, setPlace] = useState(start?.place ?? "");
+  const [date, setDate] = useState(start?.date ?? todayIso());
   const [serviced, setServiced] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,6 +60,9 @@ export default function EditRecord() {
   }
 
   const isFuel = kind === "fuel";
+  const isFlagged = (f: DraftField) => flagged.includes(f);
+  // Touching a flagged field counts as checking it.
+  const checked = (f: DraftField) => setFlagged((list) => list.filter((x) => x !== f));
   const canRestartBars = (kind === "service" || kind === "repair") && items.length > 0;
 
   async function save() {
@@ -85,7 +93,11 @@ export default function EditRecord() {
           amountLkr: lkr,
           litres: isFuel ? L : undefined,
         },
-        canRestartBars ? serviced : []
+        {
+          servicedItemIds: canRestartBars ? serviced : [],
+          billPath: draft?.billPath,
+          extracted: draft?.extracted,
+        }
       );
       close();
     } catch {
@@ -121,7 +133,7 @@ export default function EditRecord() {
         >
           <X size={22} color={colors.ink} />
         </Pressable>
-        <Txt variant="heading">{existing ? "Edit entry" : "Add entry"}</Txt>
+        <Txt variant="heading">{existing ? "Edit entry" : draft ? "Check the bill" : "Add entry"}</Txt>
         <View className="w-11" />
       </View>
 
@@ -134,10 +146,27 @@ export default function EditRecord() {
             </Txt>
           </View>
 
-          <View className="flex-row flex-wrap gap-2">
-            {kinds.map((k) => (
-              <Chip key={k.kind} label={k.label} selected={k.kind === kind} onPress={() => setKind(k.kind)} />
-            ))}
+          {draft ? (
+            <Txt className="text-ink-muted">
+              Read from your bill. {flagged.length ? "Check the marked fields, then save." : "Check it over, then save."}
+            </Txt>
+          ) : null}
+
+          <View className="gap-1.5">
+            <View className="flex-row flex-wrap gap-2">
+              {kinds.map((k) => (
+                <Chip
+                  key={k.kind}
+                  label={k.label}
+                  selected={k.kind === kind}
+                  onPress={() => {
+                    setKind(k.kind);
+                    checked("kind");
+                  }}
+                />
+              ))}
+            </View>
+            {isFlagged("kind") ? <CheckThis /> : null}
           </View>
 
           {isFuel ? null : (
@@ -145,16 +174,42 @@ export default function EditRecord() {
               <Field
                 label="What was done"
                 value={title}
-                onChangeText={setTitle}
+                onChangeText={(t) => {
+                setTitle(t);
+                checked("title");
+              }}
+                flagged={isFlagged("title")}
                 placeholder={kinds.find((k) => k.kind === kind)?.example}
               />
             </View>
           )}
 
           <View className="flex-row gap-3">
-            <Field label="Amount (LKR)" value={amount} onChangeText={setAmount} placeholder="18,500" keyboardType="decimal-pad" mono />
+            <Field
+              label="Amount (LKR)"
+              value={amount}
+              onChangeText={(t) => {
+                setAmount(t);
+                checked("amount");
+              }}
+              flagged={isFlagged("amount")}
+              placeholder="18,500"
+              keyboardType="decimal-pad"
+              mono
+            />
             {isFuel ? (
-              <Field label="Litres" value={litres} onChangeText={setLitres} placeholder="32" keyboardType="decimal-pad" mono />
+              <Field
+                label="Litres"
+                value={litres}
+                onChangeText={(t) => {
+                setLitres(t);
+                checked("litres");
+              }}
+                flagged={isFlagged("litres")}
+                placeholder="32"
+                keyboardType="decimal-pad"
+                mono
+              />
             ) : null}
           </View>
 
@@ -163,12 +218,26 @@ export default function EditRecord() {
               <Field
                 label="Odometer (km)"
                 value={km}
-                onChangeText={setKm}
+                onChangeText={(t) => {
+                setKm(t);
+                checked("km");
+              }}
+                flagged={isFlagged("km")}
                 placeholder={formatNumber(vehicle.odometerKm)}
                 keyboardType="number-pad"
                 mono
               />
-              <Field label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" mono />
+              <Field
+                label="Date"
+                value={date}
+                onChangeText={(t) => {
+                setDate(t);
+                checked("date");
+              }}
+                flagged={isFlagged("date")}
+                placeholder="YYYY-MM-DD"
+                mono
+              />
             </View>
             <Txt variant="caption">
               Odometer now {formatNumber(vehicle.odometerKm)} km. A higher reading updates it.
@@ -176,7 +245,16 @@ export default function EditRecord() {
           </View>
 
           <View className="flex-row">
-            <Field label="Place" value={place} onChangeText={setPlace} placeholder="Marawila" />
+            <Field
+              label="Place"
+              value={place}
+              onChangeText={(t) => {
+                setPlace(t);
+                checked("place");
+              }}
+              flagged={isFlagged("place")}
+              placeholder="Marawila"
+            />
           </View>
 
           {canRestartBars ? (

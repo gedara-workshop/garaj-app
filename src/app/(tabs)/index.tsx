@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { Bell, Camera, Plus } from "lucide-react-native";
-import { ActivityIndicator, Alert, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { RenewalTicket } from "@/components/RenewalTicket";
@@ -107,7 +107,7 @@ export default function Home() {
           title="Snap a bill"
           icon={Camera}
           className="rounded-full px-6 shadow-lg"
-          onPress={() => Alert.alert("Coming in week 3", "Snap a bill will read the bill with AI and fill in the entry.")}
+          onPress={() => router.push("/bill/snap")}
         />
       </View>
     </SafeAreaView>

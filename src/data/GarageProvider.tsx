@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { Alert } from "react-native";
 import { useAuth } from "./AuthProvider";
+import { readBill as readBillPhoto, type BillDraft, type ReadBill } from "./bill";
 import { signPhotoPaths, uploadVehiclePhoto } from "./photos";
 import { renewedExpiry } from "./rules";
 import { supabase } from "./supabase";
@@ -30,8 +31,14 @@ type Garage = {
   /**
    * Adds a log entry, or updates it when it has an id. A km reading past the odometer moves the
    * odometer forward, and servicedItemIds restarts those service bars from this entry's km.
+   * billPath and extracted come from Snap a bill.
    */
-  saveRecord: (r: Omit<LogRecord, "id"> & { id?: string }, servicedItemIds?: string[]) => Promise<void>;
+  saveRecord: (
+    r: Omit<LogRecord, "id"> & { id?: string },
+    options?: { servicedItemIds?: string[]; billPath?: string; extracted?: ReadBill }
+  ) => Promise<void>;
+  /** Snap a bill: uploads the photo and has it read into a form draft. Throws UnreadableBill. */
+  readBill: (photoUri: string) => Promise<BillDraft>;
   deleteRecord: (recordId: string) => Promise<void>;
   /** Adds service items, or updates the ones that have an id. */
   saveServiceItems: (items: (Omit<ServiceItem, "id"> & { id?: string })[]) => Promise<void>;
@@ -280,7 +287,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
   );
 
   const saveRecord = useCallback<Garage["saveRecord"]>(
-    async (r, servicedItemIds = []) => {
+    async (r, { servicedItemIds = [], billPath, extracted } = {}) => {
       const data = query.data;
       if (!data || !userId) throw new Error("Your garage hasn't loaded yet.");
       const fields = {
@@ -291,6 +298,8 @@ export function GarageProvider({ children }: { children: ReactNode }) {
         happened_on: r.date,
         amount_lkr: r.amountLkr,
         litres: r.litres ?? null,
+        // Only set when there is a bill, so editing an entry later keeps its bill.
+        ...(billPath ? { bill_path: billPath, extracted } : {}),
       };
       const { error } = r.id
         ? await supabase.from("records").update(fields).eq("id", r.id)
@@ -355,6 +364,15 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     [queryClient, queryKey]
   );
 
+  const readBill = useCallback<Garage["readBill"]>(
+    async (photoUri) => {
+      const garageId = query.data?.garageId;
+      if (!garageId) throw new Error("Your garage hasn't loaded yet.");
+      return readBillPhoto(garageId, photoUri);
+    },
+    [query.data?.garageId]
+  );
+
   const value = useMemo<Garage>(
     () => ({
       vehicles: query.data?.vehicles ?? [],
@@ -372,6 +390,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       deleteRecord,
       saveServiceItems,
       deleteServiceItem,
+      readBill,
     }),
     [
       query.data,
@@ -387,6 +406,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       deleteRecord,
       saveServiceItems,
       deleteServiceItem,
+      readBill,
     ]
   );
 
