@@ -11,6 +11,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/data/AuthProvider";
 import { GarageProvider } from "@/data/GarageProvider";
+import { RemindersProvider } from "@/data/RemindersProvider";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 SplashScreen.preventAutoHideAsync();
@@ -43,6 +44,7 @@ function Navigator() {
           <Stack.Screen name="record/edit" options={{ presentation: "modal" }} />
           <Stack.Screen name="service/edit" options={{ presentation: "modal" }} />
           <Stack.Screen name="bill/snap" options={{ presentation: "modal" }} />
+          <Stack.Screen name="reminders" options={{ presentation: "modal" }} />
         </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="welcome" />
@@ -73,7 +75,9 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <GarageProvider>
-            <Navigator />
+            <RemindersProvider>
+              <Navigator />
+            </RemindersProvider>
           </GarageProvider>
         </AuthProvider>
       </QueryClientProvider>

@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { useEffect } from "react";
 import { Bell, Camera, Plus } from "lucide-react-native";
 import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,6 +9,7 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { Txt } from "@/components/Txt";
 import { VehicleCard } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
+import { remindersSupported, useReminders } from "@/data/RemindersProvider";
 import { plural } from "@/data/format";
 import { renewalStatus, sortRenewals } from "@/data/rules";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -16,6 +18,13 @@ export default function Home() {
   const { vehicles, renewals, serviceItems, records, isLoading, error, refetch } = useGarage();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
+  const { permission, promptDismissed } = useReminders();
+
+  // Ask about reminders once there is a renewal to be reminded of, and only until answered.
+  const shouldAsk = remindersSupported && renewals.length > 0 && permission === "undetermined" && !promptDismissed;
+  useEffect(() => {
+    if (shouldAsk) router.push("/reminders");
+  }, [shouldAsk]);
 
   if (isLoading) {
     return (

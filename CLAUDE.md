@@ -111,6 +111,7 @@ src/
     record/edit.tsx    add (?vehicleId=) or edit (?id=) a fuel, service, repair or other entry (modal)
     service/edit.tsx   add service items with suggestions (?vehicleId=) or edit one (?id=) (modal)
     bill/snap.tsx      Snap a bill: photo, read, then record/edit opens with ?draft= for checking (modal)
+    reminders.tsx      Turn on reminders: explains first, then the system prompt (modal)
   components/          design system components
   data/
     types.ts           Vehicle, Renewal, ServiceItem, LogRecord
@@ -138,7 +139,7 @@ Screens only call `useGarage()`. It loads the signed-in person's garage from Sup
 ### Planned flows
 
 - **Auth:** phone OTP via Supabase (SMS fits Sri Lanka better than email). Codes are sent through Text.lk (about Rs 0.64 per SMS) using Supabase's Send SMS hook, a small Edge Function, since local gateways aren't built into Supabase. Google uses the browser OAuth flow (`expo-web-browser`), which works in Expo Go; switch to a native Google SDK later only if it's worth it.
-- **Reminders:** schedule local notifications with `expo-notifications` from renewal dates, and keep due dates in the database so they can be rescheduled after a reinstall. Ask for permission on a custom "Turn on reminders" screen first, then the system prompt.
+- **Reminders (live):** `RemindersProvider` schedules local notifications (`expo-notifications`) at 9 am from `planReminders` in `rules.ts`, rebuilding the whole schedule whenever renewals, settings or permission change and on every launch, so a reinstall recovers them from Supabase. At most 60 pending (iOS caps at 64), soonest first. Settings (first reminder 7/14/30/60 days, again 7 days before, on the day) are saved on the phone in `localStorage`. Home opens `reminders.tsx` once there is a renewal and permission is undecided; "Not now" is remembered. Tapping a reminder opens the vehicle. Not available on web.
 - **Snap a bill (live):** `bill/snap.tsx` takes or picks a photo, `src/data/bill.ts` shrinks it, uploads to the private `bills` bucket (`<garage_id>/<timestamp>-<random>.jpg`), calls the `read-bill` Edge Function, Zod-validates the reply and builds a draft. `record/edit.tsx` opens with the draft; low-confidence or impossible fields get an amber "Check this" (icon plus words) that clears when the field is touched. Saving stores `bill_path` and the raw `extracted` fields. Unreadable photos and network failures each have their own message, plus "Enter it manually". Redeploy the function with `npx supabase functions deploy read-bill --project-ref dtxhezxengwkjyktaxxm` (JWT checks on). Model is `gpt-5.4-mini` unless the `OPENAI_MODEL` secret says otherwise.
 - **Sign-in setup (live):** the `send-sms` Edge Function (`supabase/functions/send-sms`) is the Supabase Send SMS hook; secrets `SEND_SMS_HOOK_SECRET`, `TEXTLK_API_TOKEN`, `TEXTLK_SENDER_ID` (`TextLKDemo` until a "Garaj" sender ID is approved). Redeploy with `npx supabase functions deploy send-sms --no-verify-jwt --project-ref dtxhezxengwkjyktaxxm`. Google uses PKCE (`src/data/googleSignIn.ts`); Redirect URLs allow `garaj://**`, `exp://**` and `http://localhost:8081/**`. Supabase rejects redirect URLs with an IP host, so test Google in Expo Go with `npx expo start --tunnel`.
 - **Offline:** queue failed saves locally and retry; full sync later if needed.
@@ -149,11 +150,11 @@ Screens only call `useGarage()`. It loads the signed-in person's garage from Sup
 - **Week 1 (done):** project setup, theme, components, Home, Vehicle detail, Add vehicle, Vehicles, Costs, Me (local settings), sample data, schema.
 - **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence (done), photo upload (done), renewals CRUD (done).
 - **Week 3 (done):** fuel and service logging, service items with suggestions, cost per km, Snap a bill (Edge Function + review screen).
-- **Week 4:** reminders and notification prompt, empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
+- **Week 4:** reminders and notification prompt (done), empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
 
-Designed but not built yet: Home empty state (basic version exists), Turn on reminders, Vehicle options sheet (edit, change photo, update odometer, sold, delete), polished Snap a bill review and "could not be read" designs (functional versions exist), Sinhala Home, dark mode variants (dark already works through tokens).
+Designed but not built yet: Home empty state (basic version exists), Vehicle options sheet (edit, change photo, update odometer, sold, delete), polished Snap a bill review and "could not be read" designs (functional versions exist), Sinhala Home, dark mode variants (dark already works through tokens).
 
-Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lucide (uses the car icon for now), bill photos aren't viewable from an entry yet, Me settings aren't persisted, Tamil font not loaded, ESLint not configured yet.
+Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lucide (uses the car icon for now), bill photos aren't viewable from an entry yet, Tamil font not loaded, ESLint not configured yet.
 
 ## Working rules
 

@@ -47,6 +47,13 @@
           "cameraPermission": "Garaj uses the camera so you can snap your vehicle or a bill."
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#0e5c55"
+        }
+      ],
       "expo-sqlite",
       "expo-web-browser"
     ],

@@ -1,4 +1,4 @@
-import type { FuelType, LogRecord, Renewal, RenewalKind, ServiceItem, Status, VehicleType } from "./types";
+import type { FuelType, LogRecord, Renewal, Vehicle, RenewalKind, ServiceItem, Status, VehicleType } from "./types";
 
 // Thresholds from the design system: "soon" within 30 days or 1,000 km / 70% of an interval.
 export const SOON_DAYS = 30;
@@ -111,6 +111,39 @@ export function suggestedServiceItems(type: VehicleType, fuel?: FuelType): Sugge
     { name: "Air filter", intervalKm: 20000 },
     { name: "Brake pads", intervalKm: 30000 },
   ];
+}
+
+export type ReminderSettings = { leadDays: number; weekBefore: boolean; onTheDay: boolean };
+export const defaultReminderSettings: ReminderSettings = { leadDays: SOON_DAYS, weekBefore: true, onTheDay: true };
+
+/** iOS keeps at most 64 pending local notifications; stay under it and keep the soonest. */
+export const MAX_REMINDERS = 60;
+/** Reminders arrive at 9 am local time. */
+export const REMINDER_HOUR = 9;
+
+export type PlannedReminder = { renewal: Renewal; vehicle: Vehicle; daysBefore: number; at: Date };
+
+/** Every reminder still to come for the garage's renewals, soonest first. Sold vehicles are already filtered out. */
+export function planReminders(
+  vehicles: Vehicle[],
+  renewals: Renewal[],
+  settings: ReminderSettings,
+  now = new Date()
+): PlannedReminder[] {
+  const offsets = [
+    ...new Set([settings.leadDays, ...(settings.weekBefore ? [7] : []), ...(settings.onTheDay ? [0] : [])]),
+  ];
+  const plan: PlannedReminder[] = [];
+  for (const renewal of renewals) {
+    const vehicle = vehicles.find((v) => v.id === renewal.vehicleId);
+    if (!vehicle) continue;
+    const [y, m, d] = renewal.expiresOn.split("-").map(Number);
+    for (const daysBefore of offsets) {
+      const at = new Date(y, m - 1, d - daysBefore, REMINDER_HOUR);
+      if (at > now) plan.push({ renewal, vehicle, daysBefore, at });
+    }
+  }
+  return plan.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, MAX_REMINDERS);
 }
 
 export const renewalLabel: Record<RenewalKind, string> = {
