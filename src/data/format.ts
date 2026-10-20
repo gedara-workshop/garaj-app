@@ -1,6 +1,7 @@
 import { currentLang } from "@/i18n";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 // Full names read better in Sinhala than shortened ones.
 const MONTHS_SI = ["ජනවාරි", "පෙබරවාරි", "මාර්තු", "අප්‍රේල්", "මැයි", "ජූනි", "ජූලි", "අගෝස්තු", "සැප්තැම්බර්", "ඔක්තෝබර්", "නොවැම්බර්", "දෙසැම්බර්"];
 
@@ -12,6 +13,9 @@ export const formatNumber = (n: number) =>
 /** 142000 -> "142k" for cards; full numbers live on detail screens. */
 export const formatShortLkr = (n: number) =>
   n >= 1000 ? `${formatNumber(n / 1000)}k` : formatNumber(n);
+
+/** "October" / "ඔක්තෝබර්" for a 0-based month. */
+export const monthName = (month: number) => (currentLang() === "si" ? MONTHS_SI : MONTHS_FULL)[month];
 
 export const formatDate = (iso: string, withYear = true) => {
   const d = new Date(iso);

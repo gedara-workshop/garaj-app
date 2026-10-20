@@ -163,8 +163,38 @@ export function suggestedServiceItems(type: VehicleType, fuel?: FuelType): Sugge
   ];
 }
 
-export type ReminderSettings = { leadDays: number; weekBefore: boolean; onTheDay: boolean };
-export const defaultReminderSettings: ReminderSettings = { leadDays: SOON_DAYS, weekBefore: true, onTheDay: true };
+export type ReminderSettings = { leadDays: number; weekBefore: boolean; onTheDay: boolean; monthlySummary: boolean };
+export const defaultReminderSettings: ReminderSettings = {
+  leadDays: SOON_DAYS,
+  weekBefore: true,
+  onTheDay: true,
+  monthlySummary: true,
+};
+
+/**
+ * The monthly summary for this month so far, sent at 9 am on the 1st of next month. It is
+ * rebuilt whenever an entry is saved, so by the 1st it covers the whole month. Null when
+ * nothing was spent, since "you spent nothing" isn't worth a notification.
+ */
+export function planMonthlySummary(records: LogRecord[], now = new Date()) {
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const inMonth = records.filter((r) => {
+    const [y, m] = r.date.split("-").map(Number);
+    return y === year && m - 1 === month;
+  });
+  const total = inMonth.reduce((sum, r) => sum + r.amountLkr, 0);
+  if (total <= 0) return null;
+  const byKind = (kind: LogRecord["kind"]) => inMonth.filter((r) => r.kind === kind).reduce((sum, r) => sum + r.amountLkr, 0);
+  return {
+    month,
+    total,
+    vehicles: new Set(inMonth.map((r) => r.vehicleId)).size,
+    fuel: byKind("fuel"),
+    service: byKind("service") + byKind("repair"),
+    at: new Date(year, month + 1, 1, REMINDER_HOUR),
+  };
+}
 
 /** iOS keeps at most 64 pending local notifications; stay under it and keep the soonest. */
 export const MAX_REMINDERS = 60;
