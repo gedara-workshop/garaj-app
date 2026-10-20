@@ -1,4 +1,4 @@
-import type { FuelType, Renewal, RenewalKind, ServiceItem, Status, VehicleType } from "./types";
+import type { FuelType, LogRecord, Renewal, RenewalKind, ServiceItem, Status, VehicleType } from "./types";
 
 // Thresholds from the design system: "soon" within 30 days or 1,000 km / 70% of an interval.
 export const SOON_DAYS = 30;
@@ -39,6 +39,27 @@ export function renewedExpiry(r: Renewal, today = new Date()) {
 /** Most used up first, so the bars that need attention are the ones shown. */
 export function sortServiceItems(items: ServiceItem[], odometerKm: number) {
   return [...items].sort((a, b) => serviceProgress(b, odometerKm).share - serviceProgress(a, odometerKm).share);
+}
+
+/** Km a vehicle must cover between readings before cost per km means anything. */
+export const MIN_KM_FOR_COST = 300;
+
+/**
+ * Running cost per km for one vehicle: everything spent between its lowest and highest logged
+ * km readings, divided by the km between them. The entry at the highest reading is left out,
+ * since fuel bought there hasn't been driven yet. Null until there is enough to go on.
+ */
+export function costPerKm(records: LogRecord[]) {
+  const readings = records.filter((r) => r.odometerKm).sort((a, b) => a.odometerKm! - b.odometerKm!);
+  if (readings.length < 2) return null;
+  const first = readings[0];
+  const last = readings[readings.length - 1];
+  const km = last.odometerKm! - first.odometerKm!;
+  if (km < MIN_KM_FOR_COST) return null;
+  const spent = records
+    .filter((r) => r.id !== last.id && r.date >= first.date && r.date <= last.date)
+    .reduce((sum, r) => sum + r.amountLkr, 0);
+  return spent / km;
 }
 
 type Suggestion = { name: string; intervalKm: number };
