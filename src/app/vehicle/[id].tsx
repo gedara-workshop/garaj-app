@@ -1,12 +1,13 @@
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft, Ellipsis } from "lucide-react-native";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { PhotoScrim } from "@/components/PhotoScrim";
 import { Plate } from "@/components/Plate";
 import { RenewalTicket } from "@/components/RenewalTicket";
+import { ScreenLoading } from "@/components/ScreenState";
 import { SectionHeader } from "@/components/SectionHeader";
 import { ServiceProgress } from "@/components/ServiceProgress";
 import { TimelineRow } from "@/components/TimelineRow";
@@ -24,13 +25,7 @@ export default function VehicleDetail() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-surface-100">
-        <ActivityIndicator color={colors.brand} accessibilityLabel="Loading vehicle" />
-      </View>
-    );
-  }
+  if (isLoading) return <ScreenLoading label="Loading vehicle" />;
 
   const vehicle = vehicles.find((v) => v.id === id);
   if (!vehicle) {
@@ -174,7 +169,8 @@ export default function VehicleDetail() {
                 key={r.id}
                 record={r}
                 last={i === myRecords.length - 1}
-                onPress={() => router.push({ pathname: "/record/edit", params: { id: r.id } })}
+                // Waiting entries aren't in the database yet, so there is nothing to edit.
+                onPress={r.pending ? undefined : () => router.push({ pathname: "/record/edit", params: { id: r.id } })}
               />
             ))}
           </View>

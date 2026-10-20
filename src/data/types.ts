@@ -48,4 +48,5 @@ export type LogRecord = {
   date: string; // ISO date
   amountLkr: number;
   litres?: number; // fuel entries
+  pending?: boolean; // saved on the phone, waiting for a connection
 };

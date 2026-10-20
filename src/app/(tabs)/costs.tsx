@@ -1,5 +1,9 @@
+import { router } from "expo-router";
+import { Camera, Wallet } from "lucide-react-native";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Button } from "@/components/Button";
+import { EmptyState, ScreenError, ScreenLoading } from "@/components/ScreenState";
 import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
@@ -16,7 +20,7 @@ const kindShade: Record<RecordKind, string> = {
 };
 
 export default function Costs() {
-  const { vehicles, records } = useGarage();
+  const { vehicles, records, isLoading, error, refetch } = useGarage();
   const since = new Date();
   since.setDate(since.getDate() - 30);
   const recent = records.filter((r) => new Date(r.date) >= since);
@@ -37,6 +41,28 @@ export default function Costs() {
     })
     .sort((a, b) => b.amount - a.amount);
   const max = Math.max(1, ...byVehicle.map((x) => x.amount));
+
+  if (isLoading) return <ScreenLoading label="Loading your costs" />;
+  if (error && vehicles.length === 0) return <ScreenError onRetry={refetch} />;
+  if (records.length === 0) {
+    return (
+      <SafeAreaView edges={["top"]} className="flex-1 bg-surface-100">
+        <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-2">
+          <Txt variant="display">Costs</Txt>
+          <EmptyState
+            icon={Wallet}
+            title="No costs logged yet"
+            body="Fuel, services and repairs add up here, with cost per km once you log a few km readings."
+            action={
+              vehicles.length ? (
+                <Button title="Snap a bill" icon={Camera} onPress={() => router.push("/bill/snap")} />
+              ) : undefined
+            }
+          />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-surface-100">

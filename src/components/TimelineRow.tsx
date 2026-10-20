@@ -13,6 +13,7 @@ export function TimelineRow({ record, last = false, onPress }: { record: LogReco
   const Icon = icons[record.kind];
   const isService = record.kind === "service" || record.kind === "repair";
   const meta = [
+    record.pending ? "Waiting to upload" : undefined,
     record.place,
     record.odometerKm ? `${formatNumber(record.odometerKm)} km` : undefined,
     formatDate(record.date, false),

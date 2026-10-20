@@ -1,10 +1,11 @@
 import { router } from "expo-router";
 import { useEffect } from "react";
-import { Bell, Camera, Plus } from "lucide-react-native";
-import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { Bell, Camera, CloudOff, FileClock, Plus } from "lucide-react-native";
+import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { RenewalTicket } from "@/components/RenewalTicket";
+import { ScreenError, ScreenLoading } from "@/components/ScreenState";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Txt } from "@/components/Txt";
 import { VehicleCard } from "@/components/VehicleCard";
@@ -15,7 +16,7 @@ import { renewalStatus, sortRenewals } from "@/data/rules";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export default function Home() {
-  const { vehicles, renewals, serviceItems, records, isLoading, error, refetch } = useGarage();
+  const { vehicles, renewals, serviceItems, records, isLoading, error, refetch, pendingCount } = useGarage();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const { permission, promptDismissed } = useReminders();
@@ -26,22 +27,8 @@ export default function Home() {
     if (shouldAsk) router.push("/reminders");
   }, [shouldAsk]);
 
-  if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-surface-100">
-        <ActivityIndicator color={colors.brand} accessibilityLabel="Loading your garage" />
-      </View>
-    );
-  }
-  if (error && vehicles.length === 0) {
-    return (
-      <SafeAreaView edges={["top"]} className="flex-1 items-center justify-center gap-4 bg-surface-100 px-6">
-        <Txt variant="heading">Couldn&apos;t load your garage</Txt>
-        <Txt className="text-center text-ink-muted">Check your connection and try again.</Txt>
-        <Button title="Try again" onPress={refetch} />
-      </SafeAreaView>
-    );
-  }
+  if (isLoading) return <ScreenLoading label="Loading your garage" />;
+  if (error && vehicles.length === 0) return <ScreenError onRetry={refetch} />;
   if (vehicles.length === 0) return <EmptyHome />;
 
   const byVehicle = (id: string) => ({
@@ -84,6 +71,16 @@ export default function Home() {
             {overdue ? `, ${overdue} overdue` : ", nothing overdue"}
           </Txt>
         </View>
+
+        {pendingCount ? (
+          <View className="mx-4 flex-row items-center gap-3 rounded-md border border-line bg-surface-200 px-4 py-3">
+            <CloudOff size={18} color={colors["ink-muted"]} />
+            <Txt className="flex-1 text-[14px]">
+              {plural(pendingCount, "entry", "entries")} waiting for a connection. {pendingCount === 1 ? "It uploads" : "They upload"} by
+              itself.
+            </Txt>
+          </View>
+        ) : null}
 
         <ScrollView
           horizontal
@@ -137,19 +134,38 @@ function IconButton({ label, onPress, children }: { label: string; onPress: () =
 }
 
 function EmptyHome() {
+  const { colors } = useTheme();
+  const steps = [
+    { icon: Plus, text: "Add your vehicle, with a photo if you like" },
+    { icon: FileClock, text: "Add the revenue license and insurance dates" },
+    { icon: Bell, text: "Get a reminder 30 days before, 7 days before and on the day" },
+  ];
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-surface-100 px-4 pt-6">
-      <Txt variant="display">Welcome</Txt>
-      <Txt className="mt-1 text-ink-muted">Let&apos;s add your first vehicle. It takes about a minute.</Txt>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.push("/vehicle/new")}
-        className="mt-6 items-center gap-3 rounded-lg border-2 border-dashed border-line bg-surface-200 px-5 py-8"
-      >
-        <Txt variant="heading">Add your first vehicle</Txt>
-        <Txt variant="caption">Car, jeep, van, bike, three-wheeler or lorry</Txt>
-        <Button title="Add vehicle" icon={Plus} onPress={() => router.push("/vehicle/new")} />
-      </Pressable>
+    <SafeAreaView edges={["top"]} className="flex-1 justify-between bg-surface-100 px-4 pb-6 pt-2">
+      <View className="gap-6">
+        <Txt className="font-inter-extrabold text-[26px] tracking-tight text-brand">garaj</Txt>
+        <View className="gap-1">
+          <Txt variant="display">Welcome</Txt>
+          <Txt className="text-ink-muted">Let&apos;s add your first vehicle. It takes about a minute.</Txt>
+        </View>
+        <View className="gap-4 rounded-lg border border-line bg-surface-200 p-4">
+          {steps.map(({ icon: Icon, text }, i) => (
+            <View key={text} className="flex-row items-center gap-3">
+              <View className="h-10 w-10 items-center justify-center rounded-sm bg-brand-tint">
+                <Icon size={20} color={colors.brand} />
+              </View>
+              <Txt className="flex-1">
+                <Txt variant="number" className="text-ink-muted">
+                  {i + 1}.{" "}
+                </Txt>
+                {text}
+              </Txt>
+            </View>
+          ))}
+        </View>
+        <Txt variant="caption">Car, jeep, van, pickup, bike, three-wheeler or lorry.</Txt>
+      </View>
+      <Button title="Add vehicle" icon={Plus} onPress={() => router.push("/vehicle/new")} />
     </SafeAreaView>
   );
 }
