@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Camera, X } from "lucide-react-native";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
@@ -10,26 +10,29 @@ import { Chip, Field } from "@/components/FormField";
 import { Txt } from "@/components/Txt";
 import { vehicleTypeLabel } from "@/components/VehicleTypeIcon";
 import { useGarage } from "@/data/GarageProvider";
-import { isIsoDate } from "@/data/format";
+import { formatNumber, isIsoDate, todayIso } from "@/data/format";
 import type { FuelType, VehicleType } from "@/data/types";
 import { useTheme } from "@/theme/ThemeProvider";
 
-const types: VehicleType[] = ["car", "suv", "van", "three-wheeler", "motorbike", "lorry"];
+const types: VehicleType[] = ["car", "suv", "van", "pickup", "three-wheeler", "motorbike", "lorry"];
 const fuels: FuelType[] = ["petrol", "diesel", "hybrid", "electric"];
 
+/** Add a vehicle, or edit one with ?id= (renewal dates are then managed on the vehicle screen). */
 export default function AddVehicle() {
-  const { addVehicle } = useGarage();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { vehicles, addVehicle, updateVehicle } = useGarage();
   const { colors } = useTheme();
+  const existing = id ? vehicles.find((v) => v.id === id) : undefined;
 
   const [photo, setPhoto] = useState<string | null>(null);
-  const [type, setType] = useState<VehicleType>("car");
-  const [make, setMake] = useState("");
-  const [model, setModel] = useState("");
-  const [year, setYear] = useState("");
-  const [fuel, setFuel] = useState<FuelType>("petrol");
-  const [province, setProvince] = useState("");
-  const [plate, setPlate] = useState("");
-  const [odometer, setOdometer] = useState("");
+  const [type, setType] = useState<VehicleType>(existing?.type ?? "car");
+  const [make, setMake] = useState(existing?.make ?? "");
+  const [model, setModel] = useState(existing?.model ?? "");
+  const [year, setYear] = useState(existing?.year ? String(existing.year) : "");
+  const [fuel, setFuel] = useState<FuelType>(existing?.fuel ?? "petrol");
+  const [province, setProvince] = useState(existing?.province ?? "");
+  const [plate, setPlate] = useState(existing?.plate ?? "");
+  const [odometer, setOdometer] = useState(existing ? formatNumber(existing.odometerKm) : "");
   const [licenseDate, setLicenseDate] = useState("");
   const [insuranceDate, setInsuranceDate] = useState("");
   const [error, setError] = useState("");
@@ -59,19 +62,26 @@ export default function AddVehicle() {
 
     setError("");
     setSaving(true);
+    const details = {
+      type,
+      make: make.trim(),
+      model: model.trim(),
+      year: year ? Number(year) : undefined,
+      fuel,
+      province: province.trim().toUpperCase() || undefined,
+      plate: plate.trim().toUpperCase(),
+      odometerKm: km || 0,
+      // Editing keeps the old "updated" date unless the reading itself changed.
+      odometerUpdatedAt: existing && existing.odometerKm === (km || 0) ? existing.odometerUpdatedAt : todayIso(),
+    };
     try {
+      if (existing) {
+        await updateVehicle(existing.id, details, photo);
+        router.back();
+        return;
+      }
       const vehicle = await addVehicle(
-        {
-          type,
-          make: make.trim(),
-          model: model.trim(),
-          year: year ? Number(year) : undefined,
-          fuel,
-          province: province.trim().toUpperCase() || undefined,
-          plate: plate.trim().toUpperCase(),
-          odometerKm: km || 0,
-          odometerUpdatedAt: new Date().toISOString().slice(0, 10),
-        },
+        details,
         [
           ...(licenseDate ? [{ kind: "revenue_license" as const, expiresOn: licenseDate }] : []),
           ...(insuranceDate ? [{ kind: "insurance" as const, expiresOn: insuranceDate }] : []),
@@ -97,7 +107,7 @@ export default function AddVehicle() {
         >
           <X size={22} color={colors.ink} />
         </Pressable>
-        <Txt variant="heading">Add vehicle</Txt>
+        <Txt variant="heading">{existing ? "Edit vehicle" : "Add vehicle"}</Txt>
         <View className="w-11" />
       </View>
 
@@ -105,12 +115,18 @@ export default function AddVehicle() {
         <ScrollView contentContainerClassName="gap-5 px-4 pb-10" keyboardShouldPersistTaps="handled">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={photo ? "Change photo" : "Add a photo of your vehicle"}
+            accessibilityLabel={photo || existing?.photo ? "Change photo" : "Add a photo of your vehicle"}
             onPress={pickPhoto}
             className="h-[188px] items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-line bg-surface-200"
           >
-            {photo ? (
-              <Image source={{ uri: photo }} contentFit="cover" style={{ position: "absolute", inset: 0 }} />
+            {photo || existing?.photo ? (
+              <>
+                <Image source={photo ? { uri: photo } : existing!.photo} contentFit="cover" style={{ position: "absolute", inset: 0 }} />
+                <View className="absolute bottom-3 right-3 flex-row items-center gap-1.5 rounded-full bg-surface-200 px-3 py-1.5">
+                  <Camera size={16} color={colors.ink} />
+                  <Txt variant="label">Change photo</Txt>
+                </View>
+              </>
             ) : (
               <>
                 <View className="h-14 w-14 items-center justify-center rounded-full bg-brand-tint">
@@ -182,23 +198,29 @@ export default function AddVehicle() {
 
           <Field label="Odometer now (km)" value={odometer} onChangeText={setOdometer} placeholder="54,320" keyboardType="number-pad" mono />
 
-          <View className="gap-3">
-            <View>
-              <Txt variant="heading">Renewal dates</Txt>
-              <Txt variant="caption" className="mt-0.5">
-                Add these now or later. You&apos;ll get a reminder 30 days before.
-              </Txt>
+          {existing ? null : (
+            <View className="gap-3">
+              <View>
+                <Txt variant="heading">Renewal dates</Txt>
+                <Txt variant="caption" className="mt-0.5">
+                  Add these now or later. You&apos;ll get a reminder 30 days before.
+                </Txt>
+              </View>
+              <Field label="Revenue license expires" value={licenseDate} onChangeText={setLicenseDate} placeholder="YYYY-MM-DD" mono />
+              <Field label="Insurance renews" value={insuranceDate} onChangeText={setInsuranceDate} placeholder="YYYY-MM-DD" mono />
             </View>
-            <Field label="Revenue license expires" value={licenseDate} onChangeText={setLicenseDate} placeholder="YYYY-MM-DD" mono />
-            <Field label="Insurance renews" value={insuranceDate} onChangeText={setInsuranceDate} placeholder="YYYY-MM-DD" mono />
-          </View>
+          )}
 
           {error ? (
             <Txt accessibilityRole="alert" className="font-inter-medium text-[13px] text-due">
               {error}
             </Txt>
           ) : null}
-          <Button title={saving ? "Saving..." : "Save vehicle"} onPress={save} disabled={saving} />
+          <Button
+            title={saving ? "Saving..." : existing ? "Save changes" : "Save vehicle"}
+            onPress={save}
+            disabled={saving}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

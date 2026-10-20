@@ -106,7 +106,9 @@ src/
     _layout.tsx        fonts, ThemeProvider, GarageProvider, root Stack
     (tabs)/            Home (index), Vehicles, Costs, Me
     vehicle/[id].tsx   vehicle detail
-    vehicle/new.tsx    add vehicle (modal)
+    vehicle/new.tsx    add vehicle, or edit one with ?id= (modal)
+    vehicle/options.tsx options sheet: edit, change photo, odometer, sold, delete (form sheet)
+    vehicle/odometer.tsx update odometer (modal)
     renewal/edit.tsx   add (?vehicleId=) or edit (?id=) a renewal (modal)
     record/edit.tsx    add (?vehicleId=) or edit (?id=) a fuel, service, repair or other entry (modal)
     service/edit.tsx   add service items with suggestions (?vehicleId=) or edit one (?id=) (modal)
@@ -152,7 +154,7 @@ Screens only call `useGarage()`. It loads the signed-in person's garage from Sup
 - **Week 3 (done):** fuel and service logging, service items with suggestions, cost per km, Snap a bill (Edge Function + review screen).
 - **Week 4:** reminders and notification prompt (done), empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
 
-Designed but not built yet: Home empty state (basic version exists), Vehicle options sheet (edit, change photo, update odometer, sold, delete), polished Snap a bill review and "could not be read" designs (functional versions exist), Sinhala Home, dark mode variants (dark already works through tokens).
+Designed but not built yet: Home empty state (basic version exists), polished Snap a bill review and "could not be read" designs (functional versions exist), Sinhala Home, dark mode variants (dark already works through tokens).
 
 Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lucide (uses the car icon for now), bill photos aren't viewable from an entry yet, Tamil font not loaded, ESLint not configured yet.
 

@@ -24,6 +24,11 @@ export async function uploadVehiclePhoto(garageId: string, vehicleId: string, ur
   return path;
 }
 
+/** Best effort: a leftover photo only costs a little storage, so failures are ignored. */
+export async function removeVehiclePhoto(path?: string) {
+  if (path) await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined);
+}
+
 /** Object path -> signed link. Photos that can't be signed are left out and show the body-type icon. */
 export async function signPhotoPaths(paths: string[]) {
   if (paths.length === 0) return new Map<string, string>();

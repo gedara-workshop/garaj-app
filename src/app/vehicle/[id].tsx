@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { ChevronLeft, Ellipsis } from "lucide-react-native";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
@@ -75,6 +75,15 @@ export default function VehicleDetail() {
         >
           <ChevronLeft size={22} color={colors.ink} />
         </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Vehicle options"
+          onPress={() => router.push({ pathname: "/vehicle/options", params: { id: vehicle.id } })}
+          style={{ top: insets.top + 8 }}
+          className="absolute right-4 h-11 w-11 items-center justify-center rounded-full bg-surface-200"
+        >
+          <Ellipsis size={22} color={colors.ink} />
+        </Pressable>
         <View className="absolute bottom-0 left-0 right-0 gap-1.5 px-4 pb-4">
           <Txt className={`font-inter-semibold text-[26px] leading-[32px] ${vehicle.photo ? "text-white" : ""}`}>
             {vehicleName(vehicle)}
@@ -94,8 +103,17 @@ export default function VehicleDetail() {
           <Stat value={formatShortLkr(spent)} label="LKR this year" divider />
           <Stat value={String(myRecords.length)} label="entries" divider />
         </View>
-        <View className="flex-row items-center justify-between border-t border-line px-4 py-2.5">
+        <View className="flex-row items-center justify-between border-t border-line px-4 py-1">
           <Txt variant="caption">Odometer updated {formatDate(vehicle.odometerUpdatedAt, false)}</Txt>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: "/vehicle/odometer", params: { id: vehicle.id } })}
+            className="min-h-[44px] justify-center"
+          >
+            <Txt variant="label" className="font-inter-semibold text-brand">
+              Update
+            </Txt>
+          </Pressable>
         </View>
       </View>
 

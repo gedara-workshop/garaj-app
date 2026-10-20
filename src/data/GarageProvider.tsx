@@ -3,7 +3,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, type ReactN
 import { Alert } from "react-native";
 import { useAuth } from "./AuthProvider";
 import { readBill as readBillPhoto, type BillDraft, type ReadBill } from "./bill";
-import { signPhotoPaths, uploadVehiclePhoto } from "./photos";
+import { removeVehiclePhoto, signPhotoPaths, uploadVehiclePhoto } from "./photos";
+import { todayIso } from "./format";
 import { renewedExpiry } from "./rules";
 import { supabase } from "./supabase";
 import type { FuelType, LogRecord, RecordKind, Renewal, RenewalKind, ServiceItem, Vehicle, VehicleType } from "./types";
@@ -24,6 +25,13 @@ type Garage = {
     renewals?: Omit<Renewal, "id" | "vehicleId">[],
     photoUri?: string | null
   ) => Promise<Vehicle>;
+  /** Saves edited details, and a new photo when one was picked (the old one is removed). */
+  updateVehicle: (id: string, v: Omit<Vehicle, "id" | "photo" | "photoPath">, photoUri?: string | null) => Promise<void>;
+  setOdometer: (id: string, km: number) => Promise<void>;
+  /** Sold vehicles keep their history in the database but leave every list and stop reminders. */
+  markSold: (id: string) => Promise<void>;
+  /** Deletes the vehicle with its renewals, service items and history. */
+  deleteVehicle: (id: string) => Promise<void>;
   markRenewed: (renewalId: string) => void;
   /** Adds a renewal, or updates it when it has an id. */
   saveRenewal: (r: Omit<Renewal, "id"> & { id?: string }) => Promise<void>;
@@ -90,6 +98,7 @@ const toVehicle = (r: VehicleRow, photoUrl?: string): Vehicle => ({
   odometerUpdatedAt: r.odometer_updated_at,
   // cacheKey is the object path, so a fresh signed link doesn't download the same photo again.
   photo: r.photo_path && photoUrl ? { uri: photoUrl, cacheKey: r.photo_path } : null,
+  photoPath: r.photo_path ?? undefined,
 });
 
 const toRenewal = (r: RenewalRow): Renewal => ({
@@ -364,6 +373,59 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     [queryClient, queryKey]
   );
 
+  // Vehicle changes share one shape: write, then refetch so every screen sees it.
+  const writeVehicle = useCallback(
+    async (id: string, fields: Record<string, unknown>) => {
+      const { error } = await supabase.from("vehicles").update(fields).eq("id", id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [queryClient, queryKey]
+  );
+
+  const updateVehicle = useCallback<Garage["updateVehicle"]>(
+    async (id, v, photoUri) => {
+      const garageId = query.data?.garageId;
+      if (!garageId) throw new Error("Your garage hasn't loaded yet.");
+      const old = query.data?.vehicles.find((x) => x.id === id);
+      const photoPath = photoUri ? await uploadVehiclePhoto(garageId, id, photoUri) : undefined;
+      await writeVehicle(id, {
+        type: v.type,
+        make: v.make,
+        model: v.model,
+        year: v.year ?? null,
+        fuel: v.fuel ?? null,
+        color: v.color ?? null,
+        province: v.province ?? null,
+        plate: v.plate,
+        odometer_km: v.odometerKm,
+        odometer_updated_at: v.odometerUpdatedAt,
+        ...(photoPath ? { photo_path: photoPath } : {}),
+      });
+      if (photoPath) await removeVehiclePhoto(old?.photoPath);
+    },
+    [query.data, writeVehicle]
+  );
+
+  const setOdometer = useCallback<Garage["setOdometer"]>(
+    (id, km) => writeVehicle(id, { odometer_km: km, odometer_updated_at: todayIso() }),
+    [writeVehicle]
+  );
+
+  const markSold = useCallback<Garage["markSold"]>((id) => writeVehicle(id, { sold_at: todayIso() }), [writeVehicle]);
+
+  const deleteVehicle = useCallback<Garage["deleteVehicle"]>(
+    async (id) => {
+      const old = query.data?.vehicles.find((x) => x.id === id);
+      // Renewals, service items and records go with it (on delete cascade).
+      const { error } = await supabase.from("vehicles").delete().eq("id", id);
+      if (error) throw error;
+      await removeVehiclePhoto(old?.photoPath);
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [query.data, queryClient, queryKey]
+  );
+
   const readBill = useCallback<Garage["readBill"]>(
     async (photoUri) => {
       const garageId = query.data?.garageId;
@@ -383,6 +445,10 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       error: query.error,
       refetch: () => void query.refetch(),
       addVehicle,
+      updateVehicle,
+      setOdometer,
+      markSold,
+      deleteVehicle,
       markRenewed,
       saveRenewal,
       deleteRenewal,
@@ -399,6 +465,10 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       query.refetch,
       userId,
       addVehicle,
+      updateVehicle,
+      setOdometer,
+      markSold,
+      deleteVehicle,
       markRenewed,
       saveRenewal,
       deleteRenewal,

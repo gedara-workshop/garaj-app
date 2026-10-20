@@ -19,6 +19,7 @@ export type Vehicle = {
   odometerKm: number;
   odometerUpdatedAt: string; // ISO date
   photo?: ImageSource | number | null; // a signed link, or a bundled require() in sample data
+  photoPath?: string; // object path in the "vehicle-photos" bucket
 };
 
 export type Renewal = {

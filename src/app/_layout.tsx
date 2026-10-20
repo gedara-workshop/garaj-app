@@ -40,6 +40,11 @@ function Navigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="vehicle/[id]" />
           <Stack.Screen name="vehicle/new" options={{ presentation: "modal" }} />
+          <Stack.Screen
+            name="vehicle/options"
+            options={{ presentation: "formSheet", sheetAllowedDetents: "fitToContents", sheetGrabberVisible: true }}
+          />
+          <Stack.Screen name="vehicle/odometer" options={{ presentation: "modal" }} />
           <Stack.Screen name="renewal/edit" options={{ presentation: "modal" }} />
           <Stack.Screen name="record/edit" options={{ presentation: "modal" }} />
           <Stack.Screen name="service/edit" options={{ presentation: "modal" }} />
