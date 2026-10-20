@@ -85,6 +85,32 @@ export function costPerKm(records: LogRecord[]) {
   return spent / km;
 }
 
+/** A drop of this much against the long-run figure is worth a gentle note. */
+export const ECONOMY_DROP = 0.15;
+
+function kmPerLitre(fills: LogRecord[]) {
+  if (fills.length < 2) return null;
+  const km = fills[fills.length - 1].odometerKm! - fills[0].odometerKm!;
+  // The last fill hasn't been driven yet, so its litres don't count.
+  const litres = fills.slice(0, -1).reduce((sum, r) => sum + r.litres!, 0);
+  return km >= MIN_KM_FOR_COST && litres > 0 ? km / litres : null;
+}
+
+/**
+ * Fuel economy in km per litre from fuel entries that have both a km reading and litres.
+ * recent covers the latest three fills; dropped is true when it is clearly worse than usual,
+ * which often means tyre pressure or a service is due.
+ */
+export function fuelEconomy(records: LogRecord[]) {
+  const fills = records
+    .filter((r) => r.kind === "fuel" && r.odometerKm && r.litres)
+    .sort((a, b) => a.odometerKm! - b.odometerKm!);
+  const overall = kmPerLitre(fills);
+  if (overall === null) return null;
+  const recent = fills.length >= 6 ? kmPerLitre(fills.slice(-4)) : null;
+  return { overall, recent, dropped: recent !== null && recent < overall * (1 - ECONOMY_DROP) };
+}
+
 type Suggestion = { name: string; intervalKm: number; intervalMonths?: number };
 
 /**

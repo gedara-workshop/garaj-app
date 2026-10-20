@@ -43,6 +43,8 @@ export const en = {
   "common.tapAgainToDelete": "Tap again to delete",
   "common.tryAgain": "Try again",
   "costs.byVehicle": "By vehicle",
+  "costs.economy": "{kmpl} km/L",
+  "costs.economyDropped": "Lately {kmpl} km/L, lower than usual. Tyre pressure or a service may help.",
   "costs.emptyBody": "Fuel, services and repairs add up here, with cost per km once you log a few km readings.",
   "costs.emptyTitle": "No costs logged yet",
   "costs.footnote": "Amounts in LKR. Bars show the last 30 days. Cost per km covers everything logged between the first and latest km readings.",
