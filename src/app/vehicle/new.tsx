@@ -10,13 +10,12 @@ import { Chip, Field } from "@/components/FormField";
 import { Txt } from "@/components/Txt";
 import { vehicleTypeLabel } from "@/components/VehicleTypeIcon";
 import { useGarage } from "@/data/GarageProvider";
+import { isIsoDate } from "@/data/format";
 import type { FuelType, VehicleType } from "@/data/types";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const types: VehicleType[] = ["car", "suv", "van", "three-wheeler", "motorbike", "lorry"];
 const fuels: FuelType[] = ["petrol", "diesel", "hybrid", "electric"];
-
-const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function AddVehicle() {
   const { addVehicle } = useGarage();
@@ -55,7 +54,7 @@ export default function AddVehicle() {
       return setError("Write the year in full, like 2015.");
     }
     for (const d of [licenseDate, insuranceDate]) {
-      if (d && !isoDate.test(d)) return setError("Write renewal dates as YYYY-MM-DD, like 2026-10-25.");
+      if (d && !isIsoDate(d)) return setError("Write renewal dates as YYYY-MM-DD, like 2026-10-25.");
     }
 
     setError("");

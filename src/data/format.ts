@@ -15,6 +15,14 @@ export const formatDate = (iso: string, withYear = true) => {
   return withYear ? `${base} ${d.getFullYear()}` : base;
 };
 
+/** "2026-10-25" and a real calendar day (not 2026-02-30). */
+export const isIsoDate = (s: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const [y, m, d] = s.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
+};
+
 export const plural = (n: number, one: string, many = `${one}s`) =>
   `${formatNumber(n)} ${Math.abs(n) === 1 ? one : many}`;
 

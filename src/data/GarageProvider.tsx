@@ -24,6 +24,9 @@ type Garage = {
     photoUri?: string | null
   ) => Promise<Vehicle>;
   markRenewed: (renewalId: string) => void;
+  /** Adds a renewal, or updates it when it has an id. */
+  saveRenewal: (r: Omit<Renewal, "id"> & { id?: string }) => Promise<void>;
+  deleteRenewal: (renewalId: string) => Promise<void>;
 };
 
 type GarageData = Pick<Garage, "vehicles" | "renewals" | "serviceItems" | "records"> & { garageId: string };
@@ -242,6 +245,29 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     [query.data?.renewals, renew]
   );
 
+  const saveRenewal = useCallback<Garage["saveRenewal"]>(
+    async (r) => {
+      const garageId = query.data?.garageId;
+      if (!garageId) throw new Error("Your garage hasn't loaded yet.");
+      const fields = { kind: r.kind, provider: r.provider ?? null, expires_on: r.expiresOn };
+      const { error } = r.id
+        ? await supabase.from("renewals").update(fields).eq("id", r.id)
+        : await supabase.from("renewals").insert({ ...fields, garage_id: garageId, vehicle_id: r.vehicleId });
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [query.data?.garageId, queryClient, queryKey]
+  );
+
+  const deleteRenewal = useCallback<Garage["deleteRenewal"]>(
+    async (renewalId) => {
+      const { error } = await supabase.from("renewals").delete().eq("id", renewalId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [queryClient, queryKey]
+  );
+
   const value = useMemo<Garage>(
     () => ({
       vehicles: query.data?.vehicles ?? [],
@@ -253,8 +279,10 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       refetch: () => void query.refetch(),
       addVehicle,
       markRenewed,
+      saveRenewal,
+      deleteRenewal,
     }),
-    [query.data, query.isPending, query.error, query.refetch, userId, addVehicle, markRenewed]
+    [query.data, query.isPending, query.error, query.refetch, userId, addVehicle, markRenewed, saveRenewal, deleteRenewal]
   );
 
   return <GarageContext.Provider value={value}>{children}</GarageContext.Provider>;

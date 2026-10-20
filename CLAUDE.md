@@ -104,6 +104,7 @@ src/
     (tabs)/            Home (index), Vehicles, Costs, Me
     vehicle/[id].tsx   vehicle detail
     vehicle/new.tsx    add vehicle (modal)
+    renewal/edit.tsx   add (?vehicleId=) or edit (?id=) a renewal (modal)
   components/          design system components
   data/
     types.ts           Vehicle, Renewal, ServiceItem, LogRecord
@@ -140,7 +141,7 @@ Screens only call `useGarage()`. It loads the signed-in person's garage from Sup
 ## Status and roadmap
 
 - **Week 1 (done):** project setup, theme, components, Home, Vehicle detail, Add vehicle, Vehicles, Costs, Me (local settings), sample data, schema.
-- **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence (done), photo upload (done), renewals CRUD.
+- **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence (done), photo upload (done), renewals CRUD (done).
 - **Week 3:** Snap a bill (Edge Function + review screen), fuel and service logging, cost per km.
 - **Week 4:** reminders and notification prompt, empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
 

@@ -99,14 +99,25 @@ export default function VehicleDetail() {
         </View>
       </View>
 
-      {myRenewals.length ? (
-        <View className="mt-6 gap-3 px-4">
-          <SectionHeader title="Renewals" />
-          {myRenewals.map((r) => (
-            <RenewalTicket key={r.id} renewal={r} onRenewed={() => markRenewed(r.id)} />
-          ))}
-        </View>
-      ) : null}
+      <View className="mt-6 gap-3 px-4">
+        <SectionHeader
+          title="Renewals"
+          action="Add"
+          onAction={() => router.push({ pathname: "/renewal/edit", params: { vehicleId: vehicle.id } })}
+        />
+        {myRenewals.length ? (
+          myRenewals.map((r) => (
+            <RenewalTicket
+              key={r.id}
+              renewal={r}
+              onRenewed={() => markRenewed(r.id)}
+              onEdit={() => router.push({ pathname: "/renewal/edit", params: { id: r.id } })}
+            />
+          ))
+        ) : (
+          <Txt className="text-ink-muted">Add the revenue license and insurance dates to get reminders.</Txt>
+        )}
+      </View>
 
       {myService.length ? (
         <View className="mt-6 gap-3 px-4">
