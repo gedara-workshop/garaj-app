@@ -1,11 +1,12 @@
-import { LogOut } from "lucide-react-native";
-import { useState } from "react";
+import { router } from "expo-router";
+import { BellOff, LogOut } from "lucide-react-native";
 import { Pressable, ScrollView, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Txt } from "@/components/Txt";
 import { useAuth } from "@/data/AuthProvider";
 import { formatPhone } from "@/data/format";
+import { remindersSupported, useReminders } from "@/data/RemindersProvider";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const leadTimes = [7, 14, 30, 60];
@@ -15,10 +16,9 @@ export default function Me() {
   const { session, signOut } = useAuth();
   const user = session?.user;
   const signedInAs = user?.phone ? formatPhone(user.phone) : user?.email;
-  // Local only for now; these move to the user's profile once Supabase auth is in.
-  const [leadDays, setLeadDays] = useState(30);
-  const [weekBefore, setWeekBefore] = useState(true);
-  const [onTheDay, setOnTheDay] = useState(true);
+  // Saved on this phone, where the reminders are scheduled.
+  const { settings, setSettings, permission, turnOn } = useReminders();
+  const { leadDays, weekBefore, onTheDay } = settings;
 
   const switchColors = { false: colors["surface-300"], true: colors.brand };
 
@@ -29,6 +29,20 @@ export default function Me() {
 
         <View className="gap-2">
           <Txt variant="heading">Renewal reminders</Txt>
+          {!remindersSupported ? (
+            <Txt className="text-ink-muted">Reminders work in the Garaj phone app, not in the browser.</Txt>
+          ) : permission !== "granted" ? (
+            <View className="gap-3 rounded-md border border-line bg-surface-200 p-4">
+              <View className="flex-row items-center gap-2">
+                <BellOff size={18} color={colors["ink-muted"]} />
+                <Txt className="flex-1">Reminders are off on this phone</Txt>
+              </View>
+              <Button
+                title="Turn on reminders"
+                onPress={() => (permission === "undetermined" ? router.push("/reminders") : turnOn())}
+              />
+            </View>
+          ) : null}
           <View className="overflow-hidden rounded-md border border-line bg-surface-200">
             <View className="gap-2.5 border-b border-line p-4">
               <Txt>First reminder</Txt>
@@ -40,7 +54,7 @@ export default function Me() {
                       key={d}
                       accessibilityRole="button"
                       accessibilityState={{ selected: on }}
-                      onPress={() => setLeadDays(d)}
+                      onPress={() => setSettings({ ...settings, leadDays: d })}
                       className={`min-h-[44px] flex-1 items-center justify-center rounded-md ${
                         on ? "border-2 border-brand bg-brand-tint" : "border border-line bg-surface-200"
                       }`}
@@ -51,8 +65,8 @@ export default function Me() {
                 })}
               </View>
             </View>
-            <ToggleRow label="Again 7 days before" value={weekBefore} onChange={setWeekBefore} trackColor={switchColors} />
-            <ToggleRow label="On the day it expires" value={onTheDay} onChange={setOnTheDay} trackColor={switchColors} last />
+            <ToggleRow label="Again 7 days before" value={weekBefore} onChange={(v) => setSettings({ ...settings, weekBefore: v })} trackColor={switchColors} />
+            <ToggleRow label="On the day it expires" value={onTheDay} onChange={(v) => setSettings({ ...settings, onTheDay: v })} trackColor={switchColors} last />
           </View>
         </View>
 

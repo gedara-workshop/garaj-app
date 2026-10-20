@@ -1,5 +1,5 @@
 import { CircleDot, Fuel, Receipt, Wrench } from "lucide-react-native";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { formatDate, formatNumber } from "@/data/format";
 import type { LogRecord } from "@/data/types";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -8,7 +8,7 @@ import { Txt } from "./Txt";
 const icons = { service: Wrench, repair: CircleDot, fuel: Fuel, other: Receipt };
 
 /** One history entry. Meta order is always place, km, date. Amounts are LKR. */
-export function TimelineRow({ record, last = false }: { record: LogRecord; last?: boolean }) {
+export function TimelineRow({ record, last = false, onPress }: { record: LogRecord; last?: boolean; onPress?: () => void }) {
   const { colors } = useTheme();
   const Icon = icons[record.kind];
   const isService = record.kind === "service" || record.kind === "repair";
@@ -21,7 +21,13 @@ export function TimelineRow({ record, last = false }: { record: LogRecord; last?
     .join(", ");
 
   return (
-    <View className={`min-h-[56px] flex-row items-center gap-3 py-2 ${last ? "" : "border-b border-line"}`}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityHint={onPress ? "Edit this entry" : undefined}
+      className={`min-h-[56px] flex-row items-center gap-3 py-2 active:opacity-70 ${last ? "" : "border-b border-line"}`}
+    >
       <View className={`h-9 w-9 items-center justify-center rounded-sm ${isService ? "bg-brand-tint" : "bg-surface-300"}`}>
         <Icon size={18} color={isService ? colors.brand : colors.ink} strokeWidth={2} />
       </View>
@@ -30,6 +36,6 @@ export function TimelineRow({ record, last = false }: { record: LogRecord; last?
         <Txt variant="caption">{meta}</Txt>
       </View>
       <Txt variant="number">{formatNumber(record.amountLkr)}</Txt>
-    </View>
+    </Pressable>
   );
 }

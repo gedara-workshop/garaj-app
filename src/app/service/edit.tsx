@@ -1,0 +1,266 @@
+import { router, useLocalSearchParams } from "expo-router";
+import { ChevronRight, X } from "lucide-react-native";
+import { useState } from "react";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Button } from "@/components/Button";
+import { Chip, Field } from "@/components/FormField";
+import { Plate } from "@/components/Plate";
+import { Txt } from "@/components/Txt";
+import { vehicleName } from "@/components/VehicleCard";
+import { useGarage } from "@/data/GarageProvider";
+import { formatNumber, parseAmount, plural } from "@/data/format";
+import { suggestedServiceItems } from "@/data/rules";
+import type { ServiceItem, Vehicle } from "@/data/types";
+import { useTheme } from "@/theme/ThemeProvider";
+
+/** Add service items to a vehicle (?vehicleId=) or edit one (?id=). */
+export default function EditService() {
+  const { id, vehicleId } = useLocalSearchParams<{ id?: string; vehicleId?: string }>();
+  const { vehicles, serviceItems } = useGarage();
+  const { colors } = useTheme();
+  const [busy, setBusy] = useState(false);
+
+  const existing = id ? serviceItems.find((s) => s.id === id) : undefined;
+  const vehicle = vehicles.find((v) => v.id === (existing?.vehicleId ?? vehicleId));
+  const close = () => (router.canGoBack() ? router.back() : router.replace("/"));
+
+  // While deleting, the refetch drops the item before the screen closes: don't flash "not found".
+  const notFound = !vehicle || (id && !existing && !busy);
+
+  return (
+    <SafeAreaView className="flex-1 bg-surface-100">
+      <View className="flex-row items-center justify-between px-3 py-2">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          onPress={close}
+          className="h-11 w-11 items-center justify-center rounded-full"
+        >
+          <X size={22} color={colors.ink} />
+        </Pressable>
+        <Txt variant="heading">{id ? "Edit service item" : "Service items"}</Txt>
+        <View className="w-11" />
+      </View>
+
+      {notFound ? (
+        <View className="flex-1 items-center justify-center gap-4 p-6">
+          <Txt variant="heading">This service item isn&apos;t in your garage</Txt>
+          <Button title="Back" onPress={close} />
+        </View>
+      ) : (
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
+          <ScrollView contentContainerClassName="gap-5 px-4 pb-10" keyboardShouldPersistTaps="handled">
+            <View className="flex-row items-center gap-2">
+              <Plate province={vehicle!.province} plate={vehicle!.plate} />
+              <Txt variant="label" className="text-ink-muted">
+                {vehicleName(vehicle!)}
+              </Txt>
+            </View>
+            {id ? (
+              <EditOne item={existing} busy={busy} setBusy={setBusy} close={close} />
+            ) : (
+              <AddItems
+                vehicle={vehicle!}
+                tracked={serviceItems.filter((s) => s.vehicleId === vehicle!.id)}
+                busy={busy}
+                setBusy={setBusy}
+                close={close}
+              />
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      )}
+    </SafeAreaView>
+  );
+}
+
+type FormProps = { busy: boolean; setBusy: (b: boolean) => void; close: () => void };
+
+function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehicle: Vehicle; tracked: ServiceItem[] }) {
+  const { saveServiceItems } = useGarage();
+  const { colors } = useTheme();
+  const trackedNames = new Set(tracked.map((t) => t.name.toLowerCase()));
+  const suggestions = suggestedServiceItems(vehicle.type, vehicle.fuel).filter((s) => !trackedNames.has(s.name.toLowerCase()));
+
+  // A vehicle with nothing tracked yet starts with every suggestion picked.
+  const [picked, setPicked] = useState<string[]>(tracked.length ? [] : suggestions.map((s) => s.name));
+  const [name, setName] = useState("");
+  const [every, setEvery] = useState("");
+  const [lastDone, setLastDone] = useState(formatNumber(vehicle.odometerKm));
+  const [error, setError] = useState("");
+
+  const toggle = (n: string) => setPicked((list) => (list.includes(n) ? list.filter((x) => x !== n) : [...list, n]));
+  const count = picked.length + (name.trim() ? 1 : 0);
+
+  async function save() {
+    const lastDoneKm = parseAmount(lastDone);
+    const intervalKm = parseAmount(every);
+    if (name.trim() && !(intervalKm > 0)) return setError("Add how often it's due, in km, like 5,000.");
+    if (!(lastDoneKm >= 0)) return setError("Write the km reading as a number, like 54,320.");
+    if (count === 0) return setError("Pick an item or add your own.");
+
+    const items = [
+      ...suggestions.filter((s) => picked.includes(s.name)),
+      ...(name.trim() ? [{ name: name.trim(), intervalKm: Math.round(intervalKm) }] : []),
+    ].map((s) => ({ ...s, vehicleId: vehicle.id, lastDoneKm: Math.round(lastDoneKm) }));
+
+    setError("");
+    setBusy(true);
+    try {
+      await saveServiceItems(items);
+      close();
+    } catch {
+      setError("Couldn't save. Check your connection and try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      {tracked.length ? (
+        <View className="gap-2">
+          <Txt variant="label" className="font-inter-semibold">
+            Tracked now
+          </Txt>
+          <View className="overflow-hidden rounded-md border border-line bg-surface-200">
+            {tracked.map((t, i) => (
+              <Pressable
+                key={t.id}
+                accessibilityRole="button"
+                accessibilityHint="Edit this service item"
+                onPress={() => router.push({ pathname: "/service/edit", params: { id: t.id } })}
+                className={`min-h-[52px] flex-row items-center gap-3 px-4 active:opacity-70 ${
+                  i < tracked.length - 1 ? "border-b border-line" : ""
+                }`}
+              >
+                <Txt className="flex-1">{t.name}</Txt>
+                <Txt variant="number" className="text-ink-muted">
+                  every {formatNumber(t.intervalKm)} km
+                </Txt>
+                <ChevronRight size={18} color={colors["ink-muted"]} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : (
+        <Txt className="text-ink-muted">
+          Pick what to keep an eye on. Each one gets a bar that fills as you drive toward the next service.
+        </Txt>
+      )}
+
+      {suggestions.length ? (
+        <View className="gap-2">
+          <Txt variant="label" className="font-inter-semibold">
+            Suggested
+          </Txt>
+          <View className="flex-row flex-wrap gap-2">
+            {suggestions.map((s) => (
+              <Chip
+                key={s.name}
+                label={`${s.name}, ${formatNumber(s.intervalKm)} km`}
+                selected={picked.includes(s.name)}
+                onPress={() => toggle(s.name)}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      <View className="gap-2">
+        <Txt variant="label" className="font-inter-semibold">
+          Add your own
+        </Txt>
+        <View className="flex-row gap-3">
+          <Field label="Item" value={name} onChangeText={setName} placeholder="Gear oil" />
+          <Field label="Every (km)" value={every} onChangeText={setEvery} placeholder="40,000" keyboardType="number-pad" mono />
+        </View>
+      </View>
+
+      <View className="gap-1.5">
+        <View className="flex-row">
+          <Field label="Last done at (km)" value={lastDone} onChangeText={setLastDone} keyboardType="number-pad" mono />
+        </View>
+        <Txt variant="caption">Not sure? Leave today&apos;s reading and the bars count from now.</Txt>
+      </View>
+
+      {error ? (
+        <Txt accessibilityRole="alert" className="font-inter-medium text-[13px] text-due">
+          {error}
+        </Txt>
+      ) : null}
+      <Button
+        title={busy ? "Saving..." : count ? `Add ${plural(count, "item")}` : "Add items"}
+        onPress={save}
+        disabled={busy}
+      />
+    </>
+  );
+}
+
+function EditOne({ item, busy, setBusy, close }: FormProps & { item?: ServiceItem }) {
+  const { saveServiceItems, deleteServiceItem } = useGarage();
+  const [name, setName] = useState(item?.name ?? "");
+  const [every, setEvery] = useState(item ? formatNumber(item.intervalKm) : "");
+  const [lastDone, setLastDone] = useState(item ? formatNumber(item.lastDoneKm) : "");
+  const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  if (!item) return null;
+
+  async function save() {
+    const intervalKm = parseAmount(every);
+    const lastDoneKm = parseAmount(lastDone);
+    if (!name.trim()) return setError("Give it a name, like Oil and filter.");
+    if (!(intervalKm > 0)) return setError("Add how often it's due, in km, like 5,000.");
+    if (!(lastDoneKm >= 0)) return setError("Write the km reading as a number, like 54,320.");
+    setError("");
+    setBusy(true);
+    try {
+      await saveServiceItems([
+        { id: item!.id, vehicleId: item!.vehicleId, name: name.trim(), intervalKm: Math.round(intervalKm), lastDoneKm: Math.round(lastDoneKm) },
+      ]);
+      close();
+    } catch {
+      setError("Couldn't save. Check your connection and try again.");
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    // Two taps instead of a dialog: confirm dialogs don't work on the web build.
+    if (!confirmDelete) return setConfirmDelete(true);
+    setBusy(true);
+    try {
+      await deleteServiceItem(item!.id);
+      close();
+    } catch {
+      setError("Couldn't delete. Check your connection and try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <View className="flex-row">
+        <Field label="Item" value={name} onChangeText={setName} />
+      </View>
+      <View className="flex-row gap-3">
+        <Field label="Every (km)" value={every} onChangeText={setEvery} keyboardType="number-pad" mono />
+        <Field label="Last done at (km)" value={lastDone} onChangeText={setLastDone} keyboardType="number-pad" mono />
+      </View>
+      {error ? (
+        <Txt accessibilityRole="alert" className="font-inter-medium text-[13px] text-due">
+          {error}
+        </Txt>
+      ) : null}
+      <Button title={busy ? "Saving..." : "Save"} onPress={save} disabled={busy} />
+      <Button
+        title={confirmDelete ? "Tap again to delete" : "Stop tracking this"}
+        kind="ghost"
+        onPress={remove}
+        disabled={busy}
+      />
+    </>
+  );
+}

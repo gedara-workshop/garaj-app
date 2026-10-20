@@ -1,6 +1,7 @@
 import { router } from "expo-router";
+import { useEffect } from "react";
 import { Bell, Camera, Plus } from "lucide-react-native";
-import { Alert, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { RenewalTicket } from "@/components/RenewalTicket";
@@ -8,15 +9,39 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { Txt } from "@/components/Txt";
 import { VehicleCard } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
+import { remindersSupported, useReminders } from "@/data/RemindersProvider";
 import { plural } from "@/data/format";
 import { renewalStatus, sortRenewals } from "@/data/rules";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export default function Home() {
-  const { vehicles, renewals, serviceItems, records } = useGarage();
+  const { vehicles, renewals, serviceItems, records, isLoading, error, refetch } = useGarage();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
+  const { permission, promptDismissed } = useReminders();
 
+  // Ask about reminders once there is a renewal to be reminded of, and only until answered.
+  const shouldAsk = remindersSupported && renewals.length > 0 && permission === "undetermined" && !promptDismissed;
+  useEffect(() => {
+    if (shouldAsk) router.push("/reminders");
+  }, [shouldAsk]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-surface-100">
+        <ActivityIndicator color={colors.brand} accessibilityLabel="Loading your garage" />
+      </View>
+    );
+  }
+  if (error && vehicles.length === 0) {
+    return (
+      <SafeAreaView edges={["top"]} className="flex-1 items-center justify-center gap-4 bg-surface-100 px-6">
+        <Txt variant="heading">Couldn&apos;t load your garage</Txt>
+        <Txt className="text-center text-ink-muted">Check your connection and try again.</Txt>
+        <Button title="Try again" onPress={refetch} />
+      </SafeAreaView>
+    );
+  }
   if (vehicles.length === 0) return <EmptyHome />;
 
   const byVehicle = (id: string) => ({
@@ -91,7 +116,7 @@ export default function Home() {
           title="Snap a bill"
           icon={Camera}
           className="rounded-full px-6 shadow-lg"
-          onPress={() => Alert.alert("Coming in week 3", "Snap a bill will read the bill with AI and fill in the entry.")}
+          onPress={() => router.push("/bill/snap")}
         />
       </View>
     </SafeAreaView>

@@ -4,6 +4,7 @@ import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
 import { formatNumber } from "@/data/format";
+import { costPerKm } from "@/data/rules";
 import type { RecordKind } from "@/data/types";
 
 const kindLabel: Record<RecordKind, string> = { fuel: "Fuel", service: "Service", repair: "Repairs", other: "Other" };
@@ -26,7 +27,14 @@ export default function Costs() {
     .filter((k) => k.amount > 0);
 
   const byVehicle = vehicles
-    .map((v) => ({ v, amount: recent.filter((r) => r.vehicleId === v.id).reduce((s, r) => s + r.amountLkr, 0) }))
+    .map((v) => {
+      const mine = records.filter((r) => r.vehicleId === v.id);
+      return {
+        v,
+        amount: recent.filter((r) => r.vehicleId === v.id).reduce((s, r) => s + r.amountLkr, 0),
+        perKm: costPerKm(mine),
+      };
+    })
     .sort((a, b) => b.amount - a.amount);
   const max = Math.max(1, ...byVehicle.map((x) => x.amount));
 
@@ -65,7 +73,7 @@ export default function Costs() {
 
         <Txt variant="heading">By vehicle</Txt>
         <View className="overflow-hidden rounded-md border border-line bg-surface-200">
-          {byVehicle.map(({ v, amount }, i) => (
+          {byVehicle.map(({ v, amount, perKm }, i) => (
             <View key={v.id} className={`gap-2 px-4 py-3.5 ${i < byVehicle.length - 1 ? "border-b border-line" : ""}`}>
               <View className="flex-row items-baseline justify-between">
                 <Txt className="font-inter-semibold">{vehicleName(v)}</Txt>
@@ -74,10 +82,15 @@ export default function Costs() {
               <View className="h-2 overflow-hidden rounded-full bg-surface-300">
                 <View className="h-full rounded-full bg-brand" style={{ width: `${Math.max(3, (amount / max) * 100)}%` }} />
               </View>
+              <Txt variant="caption">
+                {perKm === null ? "Log two km readings to see cost per km" : `${perKm.toFixed(1)} per km overall`}
+              </Txt>
             </View>
           ))}
         </View>
-        <Txt variant="caption">Amounts in LKR. Cost per km arrives once odometer readings are logged over time.</Txt>
+        <Txt variant="caption">
+          Amounts in LKR. Bars show the last 30 days. Cost per km covers everything logged between the first and latest km readings.
+        </Txt>
       </ScrollView>
     </SafeAreaView>
   );

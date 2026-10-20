@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { PhotoScrim } from "@/components/PhotoScrim";
@@ -20,9 +20,17 @@ import { useTheme } from "@/theme/ThemeProvider";
 
 export default function VehicleDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { vehicles, renewals, serviceItems, records, markRenewed } = useGarage();
+  const { vehicles, renewals, serviceItems, records, markRenewed, isLoading } = useGarage();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-surface-100">
+        <ActivityIndicator color={colors.brand} accessibilityLabel="Loading vehicle" />
+      </View>
+    );
+  }
 
   const vehicle = vehicles.find((v) => v.id === id);
   if (!vehicle) {
@@ -91,36 +99,71 @@ export default function VehicleDetail() {
         </View>
       </View>
 
-      {myRenewals.length ? (
-        <View className="mt-6 gap-3 px-4">
-          <SectionHeader title="Renewals" />
-          {myRenewals.map((r) => (
-            <RenewalTicket key={r.id} renewal={r} onRenewed={() => markRenewed(r.id)} />
-          ))}
-        </View>
-      ) : null}
-
-      {myService.length ? (
-        <View className="mt-6 gap-3 px-4">
-          <SectionHeader title="Service" />
-          <ServiceProgress items={myService} odometerKm={vehicle.odometerKm} />
-        </View>
-      ) : null}
+      <View className="mt-6 gap-3 px-4">
+        <SectionHeader
+          title="Renewals"
+          action="Add"
+          onAction={() => router.push({ pathname: "/renewal/edit", params: { vehicleId: vehicle.id } })}
+        />
+        {myRenewals.length ? (
+          myRenewals.map((r) => (
+            <RenewalTicket
+              key={r.id}
+              renewal={r}
+              onRenewed={() => markRenewed(r.id)}
+              onEdit={() => router.push({ pathname: "/renewal/edit", params: { id: r.id } })}
+            />
+          ))
+        ) : (
+          <Txt className="text-ink-muted">Add the revenue license and insurance dates to get reminders.</Txt>
+        )}
+      </View>
 
       <View className="mt-6 gap-3 px-4">
-        <View className="flex-row items-baseline justify-between">
-          <SectionHeader title="History" />
-          <Txt variant="caption">Amounts in LKR</Txt>
-        </View>
+        <SectionHeader
+          title="Service"
+          action={myService.length ? (myService.length > 4 ? `All ${myService.length}` : "Add") : undefined}
+          onAction={() => router.push({ pathname: "/service/edit", params: { vehicleId: vehicle.id } })}
+        />
+        {myService.length ? (
+          <ServiceProgress
+            items={myService}
+            odometerKm={vehicle.odometerKm}
+            onPressItem={(item) => router.push({ pathname: "/service/edit", params: { id: item.id } })}
+          />
+        ) : (
+          <View className="items-start gap-3 rounded-md border border-line bg-surface-200 p-4">
+            <Txt className="text-ink-muted">Track oil changes and other km-based services with bars that fill as you drive.</Txt>
+            <Button
+              title="Set up service tracking"
+              kind="secondary"
+              onPress={() => router.push({ pathname: "/service/edit", params: { vehicleId: vehicle.id } })}
+            />
+          </View>
+        )}
+      </View>
+
+      <View className="mt-6 gap-3 px-4">
+        <SectionHeader
+          title="History"
+          action="Add"
+          onAction={() => router.push({ pathname: "/record/edit", params: { vehicleId: vehicle.id } })}
+        />
         {myRecords.length ? (
           <View className="rounded-md border border-line bg-surface-200 px-4 py-1">
             {myRecords.map((r, i) => (
-              <TimelineRow key={r.id} record={r} last={i === myRecords.length - 1} />
+              <TimelineRow
+                key={r.id}
+                record={r}
+                last={i === myRecords.length - 1}
+                onPress={() => router.push({ pathname: "/record/edit", params: { id: r.id } })}
+              />
             ))}
           </View>
         ) : (
           <Txt className="text-ink-muted">No services or fuel logged yet.</Txt>
         )}
+        {myRecords.length ? <Txt variant="caption">Amounts in LKR</Txt> : null}
       </View>
     </ScrollView>
   );

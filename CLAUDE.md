@@ -16,6 +16,9 @@ Garaj is a vehicle paperwork and service tracker for Sri Lanka, on Android and i
 - **Vehicle visuals:** the owner adds a photo of their own vehicle. No 3D models or AI renders. Without a photo, show a body-type icon on the teal band. A background-removed "cut-out" photo is a later idea, not MVP.
 - **Service records as legal proof:** on hold. Records are for the owner's own use, not certified history.
 - **Snap a bill:** the AI hook. Photo of a bill, AI fills in the entry, the user checks and saves. Fields the AI is unsure of are flagged amber, never silently saved.
+- **Logging:** a km reading higher than the odometer moves the odometer forward automatically; lower readings (old bills) leave it alone. Logging a service or repair can restart chosen service bars from that km, never backwards.
+- **Service items:** new vehicles get up to 4 suggested km-based items per vehicle type and fuel (`suggestedServiceItems` in `rules.ts`), picked by default, editable. "Last done" defaults to today's reading so bars count from now.
+- **Snap a bill model:** OpenAI (Dinal already has an account), a small vision-capable model with structured outputs (JSON schema), called from the Edge Function. Key in the `OPENAI_API_KEY` Edge Function secret only, never in the app.
 - **Reminders:** 30 days before by default, again 7 days before, and on the day. WhatsApp reminders later.
 - **Sign in:** phone number with an SMS code, plus Google. Apple sign-in comes with the iPhone App Store launch (Apple requires it on iOS when Google is offered). Each method creates its own account for now: phone and Google are not linked, so a "link sign-in methods" option in Me is needed before launch.
 - **Launch:** build for Android and iPhone from day one. Share with iPhone testers through the web build or Expo Go. Buy the Apple Developer membership (US$99 a year) only when the demand test passes and the app is close to submission. Google Play is US$25 once; new personal accounts may need a 12-tester, 14-day closed test first.
@@ -104,13 +107,18 @@ src/
     (tabs)/            Home (index), Vehicles, Costs, Me
     vehicle/[id].tsx   vehicle detail
     vehicle/new.tsx    add vehicle (modal)
+    renewal/edit.tsx   add (?vehicleId=) or edit (?id=) a renewal (modal)
+    record/edit.tsx    add (?vehicleId=) or edit (?id=) a fuel, service, repair or other entry (modal)
+    service/edit.tsx   add service items with suggestions (?vehicleId=) or edit one (?id=) (modal)
+    bill/snap.tsx      Snap a bill: photo, read, then record/edit opens with ?draft= for checking (modal)
+    reminders.tsx      Turn on reminders: explains first, then the system prompt (modal)
   components/          design system components
   data/
     types.ts           Vehicle, Renewal, ServiceItem, LogRecord
     rules.ts           status thresholds and sorting (single place for business rules)
     format.ts          numbers, LKR, dates
-    sample.ts          sample garage (Dinal's real vehicles), dates relative to today
-    GarageProvider.tsx in-memory store, the only thing screens talk to
+    sample.ts          sample garage (Dinal's real vehicles), dates relative to today; no longer loaded by the app
+    GarageProvider.tsx Supabase through TanStack Query, the only thing screens talk to
   theme/               token-names.js (shared with tailwind.config.js), tokens.ts, ThemeProvider.tsx
 supabase/migrations/   database schema
 assets/                icons, splash, sample vehicle photos
@@ -118,7 +126,7 @@ assets/                icons, splash, sample vehicle photos
 
 ### Data flow
 
-Screens only call `useGarage()`. Today it is in-memory sample data. Next it becomes Supabase queries through TanStack Query, behind the same hook shape, so screens don't change. Keep business rules (thresholds, sorting, renewal roll-forward) in `src/data/rules.ts`, not in screens.
+Screens only call `useGarage()`. It loads the signed-in person's garage from Supabase with one TanStack Query (key `["garage", userId]`) and writes straight to Supabase, refetching after each save; "Mark renewed" updates optimistically. Keep this hook shape so screens don't change. Keep business rules (thresholds, sorting, renewal roll-forward) in `src/data/rules.ts`, not in screens.
 
 ### Data model (Supabase, `supabase/migrations/0001_garaj_init.sql`)
 
@@ -131,22 +139,22 @@ Screens only call `useGarage()`. Today it is in-memory sample data. Next it beco
 ### Planned flows
 
 - **Auth:** phone OTP via Supabase (SMS fits Sri Lanka better than email). Codes are sent through Text.lk (about Rs 0.64 per SMS) using Supabase's Send SMS hook, a small Edge Function, since local gateways aren't built into Supabase. Google uses the browser OAuth flow (`expo-web-browser`), which works in Expo Go; switch to a native Google SDK later only if it's worth it.
-- **Reminders:** schedule local notifications with `expo-notifications` from renewal dates, and keep due dates in the database so they can be rescheduled after a reinstall. Ask for permission on a custom "Turn on reminders" screen first, then the system prompt.
-- **Snap a bill:** camera photo, then compress, then upload to the `bills` bucket, then a Supabase Edge Function calls a vision model with a fixed schema, then Zod-validate the response, then a review screen with low-confidence fields flagged. The API key lives only in the Edge Function. Also offer "Enter it manually" and handle blurry photos.
+- **Reminders (live):** `RemindersProvider` schedules local notifications (`expo-notifications`) at 9 am from `planReminders` in `rules.ts`, rebuilding the whole schedule whenever renewals, settings or permission change and on every launch, so a reinstall recovers them from Supabase. At most 60 pending (iOS caps at 64), soonest first. Settings (first reminder 7/14/30/60 days, again 7 days before, on the day) are saved on the phone in `localStorage`. Home opens `reminders.tsx` once there is a renewal and permission is undecided; "Not now" is remembered. Tapping a reminder opens the vehicle. Not available on web.
+- **Snap a bill (live):** `bill/snap.tsx` takes or picks a photo, `src/data/bill.ts` shrinks it, uploads to the private `bills` bucket (`<garage_id>/<timestamp>-<random>.jpg`), calls the `read-bill` Edge Function, Zod-validates the reply and builds a draft. `record/edit.tsx` opens with the draft; low-confidence or impossible fields get an amber "Check this" (icon plus words) that clears when the field is touched. Saving stores `bill_path` and the raw `extracted` fields. Unreadable photos and network failures each have their own message, plus "Enter it manually". Redeploy the function with `npx supabase functions deploy read-bill --project-ref dtxhezxengwkjyktaxxm` (JWT checks on). Model is `gpt-5.4-mini` unless the `OPENAI_MODEL` secret says otherwise.
 - **Sign-in setup (live):** the `send-sms` Edge Function (`supabase/functions/send-sms`) is the Supabase Send SMS hook; secrets `SEND_SMS_HOOK_SECRET`, `TEXTLK_API_TOKEN`, `TEXTLK_SENDER_ID` (`TextLKDemo` until a "Garaj" sender ID is approved). Redeploy with `npx supabase functions deploy send-sms --no-verify-jwt --project-ref dtxhezxengwkjyktaxxm`. Google uses PKCE (`src/data/googleSignIn.ts`); Redirect URLs allow `garaj://**`, `exp://**` and `http://localhost:8081/**`. Supabase rejects redirect URLs with an IP host, so test Google in Expo Go with `npx expo start --tunnel`.
 - **Offline:** queue failed saves locally and retry; full sync later if needed.
-- **Photos:** compress to about 1200px wide before upload.
+- **Photos (live):** `src/data/photos.ts` shrinks to 1200px wide JPEG (`expo-image-manipulator`), uploads to the private `vehicle-photos` bucket at `<garage_id>/<vehicle_id>-<timestamp>.jpg`, and the garage query turns `photo_path` into a signed link (cacheKey = path). Migrations are pushed with `npx supabase db push --linked` (project is linked).
 
 ## Status and roadmap
 
 - **Week 1 (done):** project setup, theme, components, Home, Vehicle detail, Add vehicle, Vehicles, Costs, Me (local settings), sample data, schema.
-- **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence, photo upload, renewals CRUD.
-- **Week 3:** Snap a bill (Edge Function + review screen), fuel and service logging, cost per km.
-- **Week 4:** reminders and notification prompt, empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
+- **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence (done), photo upload (done), renewals CRUD (done).
+- **Week 3 (done):** fuel and service logging, service items with suggestions, cost per km, Snap a bill (Edge Function + review screen).
+- **Week 4:** reminders and notification prompt (done), empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
 
-Designed but not built yet: Welcome, Sign in (OTP), Home empty state (basic version exists), Turn on reminders, Vehicle options sheet (edit, change photo, update odometer, sold, delete), Snap a bill review, Bill could not be read / offline, Sinhala Home, dark mode variants (dark already works through tokens).
+Designed but not built yet: Home empty state (basic version exists), Vehicle options sheet (edit, change photo, update odometer, sold, delete), polished Snap a bill review and "could not be read" designs (functional versions exist), Sinhala Home, dark mode variants (dark already works through tokens).
 
-Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lucide (uses the car icon for now), "Snap a bill" is a placeholder alert, Me settings aren't persisted, Tamil font not loaded, ESLint not configured yet.
+Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lucide (uses the car icon for now), bill photos aren't viewable from an entry yet, Tamil font not loaded, ESLint not configured yet.
 
 ## Working rules
 

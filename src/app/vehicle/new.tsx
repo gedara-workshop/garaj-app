@@ -6,16 +6,16 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { Chip, Field } from "@/components/FormField";
 import { Txt } from "@/components/Txt";
 import { vehicleTypeLabel } from "@/components/VehicleTypeIcon";
 import { useGarage } from "@/data/GarageProvider";
+import { isIsoDate } from "@/data/format";
 import type { FuelType, VehicleType } from "@/data/types";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const types: VehicleType[] = ["car", "suv", "van", "three-wheeler", "motorbike", "lorry"];
 const fuels: FuelType[] = ["petrol", "diesel", "hybrid", "electric"];
-
-const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function AddVehicle() {
   const { addVehicle } = useGarage();
@@ -33,6 +33,7 @@ export default function AddVehicle() {
   const [licenseDate, setLicenseDate] = useState("");
   const [insuranceDate, setInsuranceDate] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   async function pickPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -44,33 +45,45 @@ export default function AddVehicle() {
     if (!result.canceled) setPhoto(result.assets[0].uri);
   }
 
-  function save() {
+  async function save() {
     const km = Number(odometer.replace(/[^0-9]/g, ""));
     if (!make.trim() || !model.trim()) return setError("Add the make and model, like Toyota Corolla.");
     if (!plate.trim()) return setError("Add the number plate so you can tell your vehicles apart.");
+    if (province.trim() && !/^[A-Za-z]{2}$/.test(province.trim())) return setError("The province is two letters, like WP.");
+    if (year && (Number(year) < 1950 || Number(year) > new Date().getFullYear() + 1)) {
+      return setError("Write the year in full, like 2015.");
+    }
     for (const d of [licenseDate, insuranceDate]) {
-      if (d && !isoDate.test(d)) return setError("Write renewal dates as YYYY-MM-DD, like 2026-10-25.");
+      if (d && !isIsoDate(d)) return setError("Write renewal dates as YYYY-MM-DD, like 2026-10-25.");
     }
 
-    const vehicle = addVehicle(
-      {
-        type,
-        make: make.trim(),
-        model: model.trim(),
-        year: year ? Number(year) : undefined,
-        fuel,
-        province: province.trim().toUpperCase() || undefined,
-        plate: plate.trim().toUpperCase(),
-        odometerKm: km || 0,
-        odometerUpdatedAt: new Date().toISOString().slice(0, 10),
-        photo: photo ? { uri: photo } : null,
-      },
-      [
-        ...(licenseDate ? [{ kind: "revenue_license" as const, expiresOn: licenseDate }] : []),
-        ...(insuranceDate ? [{ kind: "insurance" as const, expiresOn: insuranceDate }] : []),
-      ]
-    );
-    router.replace({ pathname: "/vehicle/[id]", params: { id: vehicle.id } });
+    setError("");
+    setSaving(true);
+    try {
+      const vehicle = await addVehicle(
+        {
+          type,
+          make: make.trim(),
+          model: model.trim(),
+          year: year ? Number(year) : undefined,
+          fuel,
+          province: province.trim().toUpperCase() || undefined,
+          plate: plate.trim().toUpperCase(),
+          odometerKm: km || 0,
+          odometerUpdatedAt: new Date().toISOString().slice(0, 10),
+        },
+        [
+          ...(licenseDate ? [{ kind: "revenue_license" as const, expiresOn: licenseDate }] : []),
+          ...(insuranceDate ? [{ kind: "insurance" as const, expiresOn: insuranceDate }] : []),
+        ],
+        photo
+      );
+      router.replace({ pathname: "/vehicle/[id]", params: { id: vehicle.id } });
+    } catch {
+      setError("Couldn't save the vehicle. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -185,48 +198,9 @@ export default function AddVehicle() {
               {error}
             </Txt>
           ) : null}
-          <Button title="Save vehicle" onPress={save} />
+          <Button title={saving ? "Saving..." : "Save vehicle"} onPress={save} disabled={saving} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-}
-
-function Chip({ label, selected, onPress, compact = false }: { label: string; selected: boolean; onPress: () => void; compact?: boolean }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      className={`items-center justify-center rounded-md ${compact ? "min-h-[36px] px-2.5" : "min-h-[44px] px-3.5"} ${
-        selected ? "border-2 border-brand bg-brand-tint" : "border border-line bg-surface-200"
-      }`}
-    >
-      <Txt className={`${compact ? "text-[13px]" : "text-[14px]"} ${selected ? "font-inter-semibold text-brand" : ""}`}>
-        {label}
-      </Txt>
-    </Pressable>
-  );
-}
-
-function Field({
-  label,
-  mono = false,
-  ...props
-}: React.ComponentProps<typeof TextInput> & { label: string; mono?: boolean }) {
-  return (
-    <View className="flex-1 gap-1.5">
-      <Txt variant="label" className="font-inter-semibold">
-        {label}
-      </Txt>
-      <TextInput
-        {...props}
-        accessibilityLabel={label}
-        placeholderTextColor="#8a8f8c"
-        className={`h-12 rounded-sm border border-line bg-surface-200 px-3.5 text-[16px] text-ink ${
-          mono ? "font-mono" : "font-inter"
-        }`}
-      />
-    </View>
   );
 }

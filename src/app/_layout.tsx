@@ -2,6 +2,7 @@ import "../../global.css";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from "@expo-google-fonts/inter";
 import { JetBrainsMono_600SemiBold, JetBrainsMono_700Bold } from "@expo-google-fonts/jetbrains-mono";
 import { NotoSansSinhala_400Regular } from "@expo-google-fonts/noto-sans-sinhala";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -10,11 +11,14 @@ import * as WebBrowser from "expo-web-browser";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/data/AuthProvider";
 import { GarageProvider } from "@/data/GarageProvider";
+import { RemindersProvider } from "@/data/RemindersProvider";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 SplashScreen.preventAutoHideAsync();
 // On web, Google sign in returns to a pop-up running this app: hand the result back to the opener.
 WebBrowser.maybeCompleteAuthSession();
+
+const queryClient = new QueryClient();
 
 function Navigator() {
   const { scheme, colors } = useTheme();
@@ -36,6 +40,11 @@ function Navigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="vehicle/[id]" />
           <Stack.Screen name="vehicle/new" options={{ presentation: "modal" }} />
+          <Stack.Screen name="renewal/edit" options={{ presentation: "modal" }} />
+          <Stack.Screen name="record/edit" options={{ presentation: "modal" }} />
+          <Stack.Screen name="service/edit" options={{ presentation: "modal" }} />
+          <Stack.Screen name="bill/snap" options={{ presentation: "modal" }} />
+          <Stack.Screen name="reminders" options={{ presentation: "modal" }} />
         </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="welcome" />
@@ -63,11 +72,15 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <GarageProvider>
-          <Navigator />
-        </GarageProvider>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <GarageProvider>
+            <RemindersProvider>
+              <Navigator />
+            </RemindersProvider>
+          </GarageProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

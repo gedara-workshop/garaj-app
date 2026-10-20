@@ -1,4 +1,4 @@
-import type { ImageSourcePropType } from "react-native";
+import type { ImageSource } from "expo-image";
 
 export type VehicleType = "car" | "suv" | "van" | "pickup" | "three-wheeler" | "motorbike" | "lorry";
 export type FuelType = "petrol" | "diesel" | "hybrid" | "electric";
@@ -18,7 +18,7 @@ export type Vehicle = {
   plate: string;
   odometerKm: number;
   odometerUpdatedAt: string; // ISO date
-  photo?: ImageSourcePropType | null;
+  photo?: ImageSource | number | null; // a signed link, or a bundled require() in sample data
 };
 
 export type Renewal = {
@@ -46,4 +46,5 @@ export type LogRecord = {
   odometerKm?: number;
   date: string; // ISO date
   amountLkr: number;
+  litres?: number; // fuel entries
 };

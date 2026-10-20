@@ -13,10 +13,12 @@ export function RenewalTicket({
   renewal,
   vehicle,
   onRenewed,
+  onEdit,
 }: {
   renewal: Renewal;
   vehicle?: Vehicle;
   onRenewed?: () => void;
+  onEdit?: () => void;
 }) {
   const status = renewalStatus(renewal);
   const days = daysUntil(renewal.expiresOn);
@@ -42,8 +44,21 @@ export function RenewalTicket({
             <Plate province={vehicle.province} plate={vehicle.plate} />
           </View>
         ) : null}
-        {onRenewed && status !== "ok" ? (
-          <Button title="Mark renewed" kind="secondary" onPress={onRenewed} className="mt-2 min-h-[38px] self-start px-3" />
+        {(onRenewed && status !== "ok") || onEdit ? (
+          <View className="mt-2 flex-row gap-2">
+            {onRenewed && status !== "ok" ? (
+              <Button title="Mark renewed" kind="secondary" onPress={onRenewed} className="min-h-[44px] px-3" />
+            ) : null}
+            {onEdit ? (
+              <Button
+                title="Edit"
+                kind="ghost"
+                onPress={onEdit}
+                accessibilityLabel={`Edit ${kind}`}
+                className="min-h-[44px] px-3"
+              />
+            ) : null}
+          </View>
         ) : null}
       </View>
       {/* Perforation: a column of dots instead of a dashed border, which renders unevenly on iOS. */}
