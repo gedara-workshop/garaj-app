@@ -3,7 +3,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Alert, AppState } from "react-native";
 import { useAuth } from "./AuthProvider";
 import { readBill as readBillPhoto, type BillDraft, type ReadBill } from "./bill";
-import { removeVehiclePhoto, signPhotoPaths, uploadVehiclePhoto } from "./photos";
+import {
+  removeDocument,
+  removeVehiclePhoto,
+  signDocumentPaths,
+  signPhotoPaths,
+  uploadDocument,
+  uploadVehiclePhoto,
+} from "./photos";
 import { translate } from "@/i18n";
 import { todayIso } from "./format";
 import { isNetworkError, loadOutbox, newId, saveOutbox, type QueuedRecord } from "./outbox";
@@ -35,8 +42,14 @@ type Garage = {
   /** Deletes the vehicle with its renewals, service items and history. */
   deleteVehicle: (id: string) => Promise<void>;
   markRenewed: (renewalId: string) => void;
-  /** Adds a renewal, or updates it when it has an id. */
-  saveRenewal: (r: Omit<Renewal, "id"> & { id?: string }) => Promise<void>;
+  /**
+   * Adds a renewal, or updates it when it has an id. documentUri attaches a new photo of the
+   * document (replacing the old one); removeDocument takes it off.
+   */
+  saveRenewal: (
+    r: Omit<Renewal, "id" | "documentPath" | "document"> & { id?: string },
+    options?: { documentUri?: string; removeDocument?: boolean }
+  ) => Promise<void>;
   deleteRenewal: (renewalId: string) => Promise<void>;
   /**
    * Adds a log entry, or updates it when it has an id. A km reading past the odometer moves the
@@ -74,8 +87,23 @@ type VehicleRow = {
   odometer_updated_at: string;
   photo_path: string | null;
 };
-type RenewalRow = { id: string; vehicle_id: string; kind: RenewalKind; provider: string | null; expires_on: string };
-type ServiceItemRow = { id: string; vehicle_id: string; name: string; interval_km: number; last_done_km: number };
+type RenewalRow = {
+  id: string;
+  vehicle_id: string;
+  kind: RenewalKind;
+  provider: string | null;
+  expires_on: string;
+  document_path: string | null;
+};
+type ServiceItemRow = {
+  id: string;
+  vehicle_id: string;
+  name: string;
+  interval_km: number;
+  last_done_km: number;
+  interval_months: number | null;
+  last_done_on: string | null;
+};
 type RecordRow = {
   id: string;
   vehicle_id: string;
@@ -105,12 +133,14 @@ const toVehicle = (r: VehicleRow, photoUrl?: string): Vehicle => ({
   photoPath: r.photo_path ?? undefined,
 });
 
-const toRenewal = (r: RenewalRow): Renewal => ({
+const toRenewal = (r: RenewalRow, documentUrl?: string): Renewal => ({
   id: r.id,
   vehicleId: r.vehicle_id,
   kind: r.kind,
   provider: r.provider ?? undefined,
   expiresOn: r.expires_on,
+  documentPath: r.document_path ?? undefined,
+  document: r.document_path && documentUrl ? { uri: documentUrl, cacheKey: r.document_path } : null,
 });
 
 const toServiceItem = (r: ServiceItemRow): ServiceItem => ({
@@ -119,6 +149,8 @@ const toServiceItem = (r: ServiceItemRow): ServiceItem => ({
   name: r.name,
   intervalKm: r.interval_km,
   lastDoneKm: r.last_done_km,
+  intervalMonths: r.interval_months ?? undefined,
+  lastDoneOn: r.last_done_on ?? undefined,
 });
 
 const toRecord = (r: RecordRow): LogRecord => ({
@@ -156,12 +188,16 @@ async function fetchGarage(userId: string): Promise<GarageData> {
   if (failed?.error) throw failed.error;
 
   const vehicleRows = vehicles.data as VehicleRow[];
-  const photoUrls = await signPhotoPaths(vehicleRows.flatMap((v) => (v.photo_path ? [v.photo_path] : [])));
+  const renewalRows = renewals.data as RenewalRow[];
+  const [photoUrls, documentUrls] = await Promise.all([
+    signPhotoPaths(vehicleRows.flatMap((v) => (v.photo_path ? [v.photo_path] : []))),
+    signDocumentPaths(renewalRows.flatMap((r) => (r.document_path ? [r.document_path] : []))),
+  ]);
 
   return {
     garageId,
     vehicles: vehicleRows.map((v) => toVehicle(v, v.photo_path ? photoUrls.get(v.photo_path) : undefined)),
-    renewals: (renewals.data as RenewalRow[]).map(toRenewal),
+    renewals: renewalRows.map((r) => toRenewal(r, r.document_path ? documentUrls.get(r.document_path) : undefined)),
     serviceItems: (serviceItems.data as ServiceItemRow[]).map(toServiceItem),
     records: (records.data as RecordRow[]).map(toRecord),
   };
@@ -210,7 +246,11 @@ async function writeRecord(
       .lt("odometer_km", km);
   }
   if (km && servicedItemIds.length) {
-    await supabase.from("service_items").update({ last_done_km: km }).in("id", servicedItemIds).lte("last_done_km", km);
+    await supabase
+      .from("service_items")
+      .update({ last_done_km: km, last_done_on: r.date })
+      .in("id", servicedItemIds)
+      .lte("last_done_km", km);
   }
 }
 
@@ -324,26 +364,41 @@ export function GarageProvider({ children }: { children: ReactNode }) {
   );
 
   const saveRenewal = useCallback<Garage["saveRenewal"]>(
-    async (r) => {
+    async (r, { documentUri, removeDocument: dropDocument = false } = {}) => {
       const garageId = query.data?.garageId;
       if (!garageId) throw new Error("Your garage hasn't loaded yet.");
-      const fields = { kind: r.kind, provider: r.provider ?? null, expires_on: r.expiresOn };
+      // A new renewal gets its id here, so its document can be uploaded under it first.
+      const id = r.id ?? newId();
+      const old = query.data?.renewals.find((x) => x.id === r.id)?.documentPath;
+      const documentPath = documentUri ? await uploadDocument(garageId, id, documentUri) : undefined;
+      const fields = {
+        kind: r.kind,
+        provider: r.provider ?? null,
+        expires_on: r.expiresOn,
+        ...(documentPath ? { document_path: documentPath } : dropDocument ? { document_path: null } : {}),
+      };
       const { error } = r.id
         ? await supabase.from("renewals").update(fields).eq("id", r.id)
-        : await supabase.from("renewals").insert({ ...fields, garage_id: garageId, vehicle_id: r.vehicleId });
-      if (error) throw error;
+        : await supabase.from("renewals").insert({ ...fields, id, garage_id: garageId, vehicle_id: r.vehicleId });
+      if (error) {
+        await removeDocument(documentPath);
+        throw error;
+      }
+      if (documentPath || dropDocument) await removeDocument(old);
       await queryClient.invalidateQueries({ queryKey });
     },
-    [query.data?.garageId, queryClient, queryKey]
+    [query.data, queryClient, queryKey]
   );
 
   const deleteRenewal = useCallback<Garage["deleteRenewal"]>(
     async (renewalId) => {
+      const old = query.data?.renewals.find((x) => x.id === renewalId)?.documentPath;
       const { error } = await supabase.from("renewals").delete().eq("id", renewalId);
       if (error) throw error;
+      await removeDocument(old);
       await queryClient.invalidateQueries({ queryKey });
     },
-    [queryClient, queryKey]
+    [query.data, queryClient, queryKey]
   );
 
   // Entries waiting for a connection, for the signed-in person only.
@@ -427,7 +482,13 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     async (items) => {
       const garageId = query.data?.garageId;
       if (!garageId) throw new Error("Your garage hasn't loaded yet.");
-      const fields = (i: (typeof items)[number]) => ({ name: i.name, interval_km: i.intervalKm, last_done_km: i.lastDoneKm });
+      const fields = (i: (typeof items)[number]) => ({
+        name: i.name,
+        interval_km: i.intervalKm,
+        last_done_km: i.lastDoneKm,
+        interval_months: i.intervalMonths ?? null,
+        last_done_on: i.lastDoneOn ?? null,
+      });
       const added = items.filter((i) => !i.id);
       const changed = items.filter((i) => i.id);
       const results = await Promise.all([
@@ -502,6 +563,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from("vehicles").delete().eq("id", id);
       if (error) throw error;
       await removeVehiclePhoto(old?.photoPath);
+      for (const r of query.data?.renewals ?? []) if (r.vehicleId === id) await removeDocument(r.documentPath);
       await queryClient.invalidateQueries({ queryKey });
     },
     [query.data, queryClient, queryKey]

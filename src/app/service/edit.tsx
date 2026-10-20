@@ -9,7 +9,7 @@ import { Plate } from "@/components/Plate";
 import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
-import { formatNumber, parseAmount } from "@/data/format";
+import { formatNumber, isIsoDate, parseAmount, todayIso } from "@/data/format";
 import { suggestedServiceItems } from "@/data/rules";
 import type { ServiceItem, Vehicle } from "@/data/types";
 import { translate, translatePlural, useT } from "@/i18n";
@@ -77,6 +77,9 @@ export default function EditService() {
   );
 }
 
+/** Whole months, up to five years. */
+const validMonths = (n: number) => Number.isInteger(n) && n >= 1 && n <= 60;
+
 type FormProps = { busy: boolean; setBusy: (b: boolean) => void; close: () => void };
 
 function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehicle: Vehicle; tracked: ServiceItem[] }) {
@@ -89,6 +92,7 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
   const [picked, setPicked] = useState<string[]>(tracked.length ? [] : suggestions.map((s) => s.name));
   const [name, setName] = useState("");
   const [every, setEvery] = useState("");
+  const [months, setMonths] = useState("");
   const [lastDone, setLastDone] = useState(formatNumber(vehicle.odometerKm));
   const [error, setError] = useState("");
 
@@ -98,14 +102,17 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
   async function save() {
     const lastDoneKm = parseAmount(lastDone);
     const intervalKm = parseAmount(every);
+    const intervalMonths = months ? parseAmount(months) : undefined;
+    if (intervalMonths !== undefined && !validMonths(intervalMonths)) return setError(translate("serviceForm.monthsFormat"));
     if (name.trim() && !(intervalKm > 0)) return setError(translate("serviceForm.needInterval"));
     if (!(lastDoneKm >= 0)) return setError(translate("common.kmFormat"));
     if (count === 0) return setError(translate("serviceForm.needItem"));
 
     const items = [
       ...suggestions.filter((s) => picked.includes(s.name)),
-      ...(name.trim() ? [{ name: name.trim(), intervalKm: Math.round(intervalKm) }] : []),
-    ].map((s) => ({ ...s, vehicleId: vehicle.id, lastDoneKm: Math.round(lastDoneKm) }));
+      ...(name.trim() ? [{ name: name.trim(), intervalKm: Math.round(intervalKm), intervalMonths }] : []),
+      // Counted from today, like the km reading: "last done" is unknown for a new item.
+    ].map((s) => ({ ...s, vehicleId: vehicle.id, lastDoneKm: Math.round(lastDoneKm), lastDoneOn: todayIso() }));
 
     setError("");
     setBusy(true);
@@ -138,7 +145,9 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
               >
                 <Txt className="flex-1">{item.name}</Txt>
                 <Txt variant="number" className="text-ink-muted">
-                  {translate("serviceForm.every", { km: formatNumber(item.intervalKm) })}
+                  {item.intervalMonths
+                    ? translate("serviceForm.everyMonths", { km: formatNumber(item.intervalKm), months: item.intervalMonths })
+                    : translate("serviceForm.every", { km: formatNumber(item.intervalKm) })}
                 </Txt>
                 <ChevronRight size={18} color={colors["ink-muted"]} />
               </Pressable>
@@ -160,7 +169,11 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
             {suggestions.map((s) => (
               <Chip
                 key={s.name}
-                label={translate("serviceForm.suggestion", { name: s.name, km: formatNumber(s.intervalKm) })}
+                label={
+                  s.intervalMonths
+                    ? translate("serviceForm.suggestionMonths", { name: s.name, km: formatNumber(s.intervalKm), months: s.intervalMonths })
+                    : translate("serviceForm.suggestion", { name: s.name, km: formatNumber(s.intervalKm) })
+                }
                 selected={picked.includes(s.name)}
                 onPress={() => toggle(s.name)}
               />
@@ -176,6 +189,9 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
         <View className="flex-row gap-3">
           <Field label={translate("serviceForm.item")} value={name} onChangeText={setName} placeholder={translate("serviceForm.itemExample")} />
           <Field label={translate("serviceForm.everyKm")} value={every} onChangeText={setEvery} placeholder="40,000" keyboardType="number-pad" mono />
+        </View>
+        <View className="flex-row">
+          <Field label={translate("serviceForm.orMonths")} value={months} onChangeText={setMonths} placeholder="12" keyboardType="number-pad" mono />
         </View>
       </View>
 
@@ -205,6 +221,8 @@ function EditOne({ item, busy, setBusy, close }: FormProps & { item?: ServiceIte
   const [name, setName] = useState(item?.name ?? "");
   const [every, setEvery] = useState(item ? formatNumber(item.intervalKm) : "");
   const [lastDone, setLastDone] = useState(item ? formatNumber(item.lastDoneKm) : "");
+  const [months, setMonths] = useState(item?.intervalMonths ? String(item.intervalMonths) : "");
+  const [lastDoneOn, setLastDoneOn] = useState(item?.lastDoneOn ?? todayIso());
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -216,11 +234,22 @@ function EditOne({ item, busy, setBusy, close }: FormProps & { item?: ServiceIte
     if (!name.trim()) return setError(translate("serviceForm.needName"));
     if (!(intervalKm > 0)) return setError(translate("serviceForm.needInterval"));
     if (!(lastDoneKm >= 0)) return setError(translate("common.kmFormat"));
+    const intervalMonths = months ? parseAmount(months) : undefined;
+    if (intervalMonths !== undefined && !validMonths(intervalMonths)) return setError(translate("serviceForm.monthsFormat"));
+    if (!isIsoDate(lastDoneOn)) return setError(translate("common.dateFormat"));
     setError("");
     setBusy(true);
     try {
       await saveServiceItems([
-        { id: item!.id, vehicleId: item!.vehicleId, name: name.trim(), intervalKm: Math.round(intervalKm), lastDoneKm: Math.round(lastDoneKm) },
+        {
+          id: item!.id,
+          vehicleId: item!.vehicleId,
+          name: name.trim(),
+          intervalKm: Math.round(intervalKm),
+          lastDoneKm: Math.round(lastDoneKm),
+          intervalMonths,
+          lastDoneOn,
+        },
       ]);
       close();
     } catch {
@@ -249,8 +278,13 @@ function EditOne({ item, busy, setBusy, close }: FormProps & { item?: ServiceIte
       </View>
       <View className="flex-row gap-3">
         <Field label={translate("serviceForm.everyKm")} value={every} onChangeText={setEvery} keyboardType="number-pad" mono />
-        <Field label={translate("serviceForm.lastDone")} value={lastDone} onChangeText={setLastDone} keyboardType="number-pad" mono />
+        <Field label={translate("serviceForm.orMonths")} value={months} onChangeText={setMonths} placeholder="6" keyboardType="number-pad" mono />
       </View>
+      <View className="flex-row gap-3">
+        <Field label={translate("serviceForm.lastDone")} value={lastDone} onChangeText={setLastDone} keyboardType="number-pad" mono />
+        <Field label={translate("serviceForm.lastDoneOn")} value={lastDoneOn} onChangeText={setLastDoneOn} placeholder="YYYY-MM-DD" mono />
+      </View>
+      <Txt variant="caption">{translate("serviceForm.whicheverFirst")}</Txt>
       {error ? (
         <Txt accessibilityRole="alert" className="font-inter-medium text-[13px] text-due">
           {error}

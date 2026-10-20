@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Camera, Wallet } from "lucide-react-native";
+import { Camera, TrendingDown, Wallet } from "lucide-react-native";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
@@ -8,8 +8,9 @@ import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
 import { formatNumber } from "@/data/format";
-import { costPerKm } from "@/data/rules";
+import { costPerKm, fuelEconomy } from "@/data/rules";
 import { translate, useT } from "@/i18n";
+import { useTheme } from "@/theme/ThemeProvider";
 import type { RecordKind } from "@/data/types";
 
 const kindLabel = (k: RecordKind) => translate(`costs.kind.${k}`);
@@ -23,6 +24,7 @@ const kindShade: Record<RecordKind, string> = {
 export default function Costs() {
   const { vehicles, records, isLoading, error, refetch } = useGarage();
   const { t } = useT();
+  const { colors } = useTheme();
   const since = new Date();
   since.setDate(since.getDate() - 30);
   const recent = records.filter((r) => new Date(r.date) >= since);
@@ -39,6 +41,7 @@ export default function Costs() {
         v,
         amount: recent.filter((r) => r.vehicleId === v.id).reduce((s, r) => s + r.amountLkr, 0),
         perKm: costPerKm(mine),
+        economy: v.fuel === "electric" ? null : fuelEconomy(mine),
       };
     })
     .sort((a, b) => b.amount - a.amount);
@@ -101,7 +104,7 @@ export default function Costs() {
 
         <Txt variant="heading">{t("costs.byVehicle")}</Txt>
         <View className="overflow-hidden rounded-md border border-line bg-surface-200">
-          {byVehicle.map(({ v, amount, perKm }, i) => (
+          {byVehicle.map(({ v, amount, perKm, economy }, i) => (
             <View key={v.id} className={`gap-2 px-4 py-3.5 ${i < byVehicle.length - 1 ? "border-b border-line" : ""}`}>
               <View className="flex-row items-baseline justify-between">
                 <Txt className="font-inter-semibold">{vehicleName(v)}</Txt>
@@ -112,7 +115,16 @@ export default function Costs() {
               </View>
               <Txt variant="caption">
                 {perKm === null ? t("costs.perKmNeedReadings") : t("costs.perKm", { amount: perKm.toFixed(1) })}
+                {economy ? `  ·  ${t("costs.economy", { kmpl: economy.overall.toFixed(1) })}` : ""}
               </Txt>
+              {economy?.dropped ? (
+                <View className="flex-row items-start gap-1.5">
+                  <TrendingDown size={14} color={colors["ink-muted"]} />
+                  <Txt variant="caption" className="flex-1">
+                    {t("costs.economyDropped", { kmpl: economy.recent!.toFixed(1) })}
+                  </Txt>
+                </View>
+              ) : null}
             </View>
           ))}
         </View>

@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { Camera, Gauge, Handshake, Pencil, Trash2, type LucideIcon } from "lucide-react-native";
+import { Camera, FileDown, Gauge, Handshake, Pencil, Trash2, type LucideIcon } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Plate } from "@/components/Plate";
 import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
+import { shareVehicleReport } from "@/data/report";
 import { formatDate, formatNumber } from "@/data/format";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -15,16 +16,31 @@ type Confirm = "sold" | "delete" | null;
 /** Vehicle options sheet: edit, change photo, update odometer, sold, delete. */
 export default function VehicleOptions() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { vehicles, markSold, deleteVehicle } = useGarage();
+  const { vehicles, renewals, serviceItems, records, markSold, deleteVehicle } = useGarage();
   const { t } = useT();
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const vehicle = vehicles.find((v) => v.id === id);
   if (!vehicle) return null;
 
   const go = (pathname: "/vehicle/new" | "/vehicle/odometer") => router.replace({ pathname, params: { id: vehicle.id } });
+
+  async function exportHistory() {
+    setExporting(true);
+    setError("");
+    try {
+      const mine = <T extends { vehicleId: string }>(list: T[]) => list.filter((x) => x.vehicleId === vehicle!.id);
+      await shareVehicleReport(vehicle!, mine(renewals), mine(serviceItems), mine(records).filter((r) => !r.pending));
+    } catch (e) {
+      console.warn("Export failed", e);
+      setError(t("options.exportFailed"));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Two taps instead of a dialog: confirm dialogs don't work on the web build.
   async function finish(action: Exclude<Confirm, null>) {
@@ -53,6 +69,13 @@ export default function VehicleOptions() {
         label={t("odometer.title")}
         hint={t("options.odometerHint", { km: formatNumber(vehicle.odometerKm), date: formatDate(vehicle.odometerUpdatedAt, false) })}
         onPress={() => go("/vehicle/odometer")}
+      />
+      <Row
+        icon={FileDown}
+        label={exporting ? t("options.exporting") : t("options.export")}
+        hint={t("options.exportHint")}
+        onPress={exportHistory}
+        disabled={exporting}
       />
       <Row
         icon={Handshake}

@@ -114,6 +114,7 @@ src/
     service/edit.tsx   add service items with suggestions (?vehicleId=) or edit one (?id=) (modal)
     bill/snap.tsx      Snap a bill: photo, read, then record/edit opens with ?draft= for checking (modal)
     reminders.tsx      Turn on reminders: explains first, then the system prompt (modal)
+    renewal/document.tsx full-screen copy of a renewal document
   components/          design system components
   data/
     types.ts           Vehicle, Renewal, ServiceItem, LogRecord
@@ -142,6 +143,11 @@ Screens only call `useGarage()`. It loads the signed-in person's garage from Sup
 ### Planned flows
 
 - **Auth:** phone OTP via Supabase (SMS fits Sri Lanka better than email). Codes are sent through Text.lk (about Rs 0.64 per SMS) using Supabase's Send SMS hook, a small Edge Function, since local gateways aren't built into Supabase. Google uses the browser OAuth flow (`expo-web-browser`), which works in Expo Go; switch to a native Google SDK later only if it's worth it.
+- **Service items** can also have "or every N months" (`interval_months`, `last_done_on`); `serviceProgress` uses whichever limit is closer and says so on the bar. Logging a service updates both km and date.
+- **Fuel economy:** `fuelEconomy` in `rules.ts` (fuel entries with km and litres, last fill excluded); Costs notes a drop of 15%+ over the latest three fills.
+- **Documents:** a photo per renewal in the private `documents` bucket (`renewals.document_path`), viewed full screen. Shown as a copy for reference, never as a replacement for originals.
+- **PDF export:** `src/data/report.ts` builds HTML for one vehicle (renewals, service items, history, totals), `expo-print` makes the PDF and `expo-sharing` opens the share sheet; web opens the print dialog. Footer says it is the owner's own record, not certified history.
+- **Monthly summary:** `planMonthlySummary` schedules one notification for 9 am on the 1st with the current month's totals, rebuilt with every saved entry; toggle in Me. Tapping opens Costs.
 - **Reminders (live):** `RemindersProvider` schedules local notifications (`expo-notifications`) at 9 am from `planReminders` in `rules.ts`, rebuilding the whole schedule whenever renewals, settings or permission change and on every launch, so a reinstall recovers them from Supabase. At most 60 pending (iOS caps at 64), soonest first. Settings (first reminder 7/14/30/60 days, again 7 days before, on the day) are saved on the phone in `localStorage`. Home opens `reminders.tsx` once there is a renewal and permission is undecided; "Not now" is remembered. Tapping a reminder opens the vehicle. Not available on web.
 - **Snap a bill (live):** `bill/snap.tsx` takes or picks a photo, `src/data/bill.ts` shrinks it, uploads to the private `bills` bucket (`<garage_id>/<timestamp>-<random>.jpg`), calls the `read-bill` Edge Function, Zod-validates the reply and builds a draft. `record/edit.tsx` opens with the draft; low-confidence or impossible fields get an amber "Check this" (icon plus words) that clears when the field is touched. Saving stores `bill_path` and the raw `extracted` fields. Unreadable photos and network failures each have their own message, plus "Enter it manually". Redeploy the function with `npx supabase functions deploy read-bill --project-ref dtxhezxengwkjyktaxxm` (JWT checks on). Model is `gpt-5.4-mini` unless the `OPENAI_MODEL` secret says otherwise.
 - **Sign-in setup (live):** the `send-sms` Edge Function (`supabase/functions/send-sms`) is the Supabase Send SMS hook; secrets `SEND_SMS_HOOK_SECRET`, `TEXTLK_API_TOKEN`, `TEXTLK_SENDER_ID` (`TextLKDemo` until a "Garaj" sender ID is approved). Redeploy with `npx supabase functions deploy send-sms --no-verify-jwt --project-ref dtxhezxengwkjyktaxxm`. Google uses PKCE (`src/data/googleSignIn.ts`); Redirect URLs allow `garaj://**`, `exp://**` and `http://localhost:8081/**`. Supabase rejects redirect URLs with an IP host, so test Google in Expo Go with `npx expo start --tunnel`.

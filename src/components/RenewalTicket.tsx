@@ -1,3 +1,4 @@
+import { FileText } from "lucide-react-native";
 import { Text, View } from "react-native";
 import { formatDate } from "@/data/format";
 import { daysUntil, renewalLabel, renewalStatus } from "@/data/rules";
@@ -15,11 +16,13 @@ export function RenewalTicket({
   vehicle,
   onRenewed,
   onEdit,
+  onViewDocument,
 }: {
   renewal: Renewal;
   vehicle?: Vehicle;
   onRenewed?: () => void;
   onEdit?: () => void;
+  onViewDocument?: () => void;
 }) {
   const status = renewalStatus(renewal);
   const days = daysUntil(renewal.expiresOn);
@@ -45,10 +48,19 @@ export function RenewalTicket({
             <Plate province={vehicle.province} plate={vehicle.plate} />
           </View>
         ) : null}
-        {(onRenewed && status !== "ok") || onEdit ? (
+        {(onRenewed && status !== "ok") || onEdit || (onViewDocument && renewal.document) ? (
           <View className="mt-2 flex-row gap-2">
             {onRenewed && status !== "ok" ? (
               <Button title={translate("ticket.markRenewed")} kind="secondary" onPress={onRenewed} className="min-h-[44px] px-3" />
+            ) : null}
+            {onViewDocument && renewal.document ? (
+              <Button
+                title={translate("document.view")}
+                kind="ghost"
+                icon={FileText}
+                onPress={onViewDocument}
+                className="min-h-[44px] px-3"
+              />
             ) : null}
             {onEdit ? (
               <Button

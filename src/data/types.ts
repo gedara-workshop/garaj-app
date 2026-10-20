@@ -28,6 +28,8 @@ export type Renewal = {
   kind: RenewalKind;
   provider?: string; // e.g. insurance company
   expiresOn: string; // ISO date
+  documentPath?: string; // object path in the "documents" bucket
+  document?: ImageSource | null; // signed link to the document photo
 };
 
 export type ServiceItem = {
@@ -36,6 +38,8 @@ export type ServiceItem = {
   name: string;
   intervalKm: number;
   lastDoneKm: number;
+  intervalMonths?: number; // "or every N months", whichever comes first
+  lastDoneOn?: string; // ISO date the item was last done
 };
 
 export type LogRecord = {

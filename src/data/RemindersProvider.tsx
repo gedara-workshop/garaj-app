@@ -3,11 +3,13 @@ import { router } from "expo-router";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppState, Linking, Platform } from "react-native";
 import { vehicleName } from "@/components/VehicleCard";
-import { translate, useT } from "@/i18n";
-import { formatDate } from "./format";
+import { translate, translatePlural, useT } from "@/i18n";
+import { formatDate, formatNumber, monthName } from "./format";
 import { useGarage } from "./GarageProvider";
 import {
   defaultReminderSettings,
+  MAX_REMINDERS,
+  planMonthlySummary,
   planReminders,
   renewalLabel,
   type PlannedReminder,
@@ -82,7 +84,21 @@ function content(r: PlannedReminder): Notifications.NotificationContentInput {
   };
 }
 
-async function reschedule(plan: PlannedReminder[]) {
+type MonthlySummary = NonNullable<ReturnType<typeof planMonthlySummary>>;
+
+/** "October: LKR 42,300" with the split underneath. Tapping it opens Costs. */
+function summaryContent(s: MonthlySummary): Notifications.NotificationContentInput {
+  return {
+    title: translate("notify.summaryTitle", { month: monthName(s.month), amount: formatNumber(s.total) }),
+    body: translatePlural("notify.summaryBody", s.vehicles, {
+      fuel: formatNumber(s.fuel),
+      service: formatNumber(s.service),
+    }),
+    data: { screen: "costs" },
+  };
+}
+
+async function reschedule(plan: PlannedReminder[], summary: MonthlySummary | null) {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync(CHANNEL, {
       name: "Renewal reminders",
@@ -97,12 +113,18 @@ async function reschedule(plan: PlannedReminder[]) {
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.at, channelId: CHANNEL },
     });
   }
+  if (summary) {
+    await Notifications.scheduleNotificationAsync({
+      content: summaryContent(summary),
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: summary.at, channelId: CHANNEL },
+    });
+  }
 }
 
 const RemindersContext = createContext<Reminders | null>(null);
 
 export function RemindersProvider({ children }: { children: ReactNode }) {
-  const { vehicles, renewals, isLoading } = useGarage();
+  const { vehicles, renewals, records, isLoading } = useGarage();
   // Scheduled text is written in the current language, so a language change rewrites it.
   const { lang } = useT();
   const [settings, setSettingsState] = useState(() => load(SETTINGS_KEY, defaultReminderSettings));
@@ -122,8 +144,9 @@ export function RemindersProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!remindersSupported || isLoading) return;
     const open = (response: Notifications.NotificationResponse | null) => {
-      const vehicleId = response?.notification.request.content.data?.vehicleId;
-      if (typeof vehicleId === "string") router.push({ pathname: "/vehicle/[id]", params: { id: vehicleId } });
+      const data = response?.notification.request.content.data;
+      if (data?.screen === "costs") router.push("/costs");
+      else if (typeof data?.vehicleId === "string") router.push({ pathname: "/vehicle/[id]", params: { id: data.vehicleId } });
     };
     Notifications.getLastNotificationResponseAsync().then((r) => {
       open(r);
@@ -136,8 +159,11 @@ export function RemindersProvider({ children }: { children: ReactNode }) {
   // Rebuild the schedule from the garage whenever anything it depends on changes.
   useEffect(() => {
     if (!remindersSupported || isLoading || permission !== "granted") return;
-    reschedule(planReminders(vehicles, renewals, settings)).catch((e) => console.warn("Reminders not scheduled", e));
-  }, [vehicles, renewals, settings, permission, isLoading, lang]);
+    // One slot is kept for the summary, so the total stays under iOS's cap of 64.
+    const summary = settings.monthlySummary ? planMonthlySummary(records) : null;
+    const plan = planReminders(vehicles, renewals, settings).slice(0, summary ? MAX_REMINDERS - 1 : MAX_REMINDERS);
+    reschedule(plan, summary).catch((e) => console.warn("Reminders not scheduled", e));
+  }, [vehicles, renewals, records, settings, permission, isLoading, lang]);
 
   const setSettings = useCallback((s: ReminderSettings) => {
     setSettingsState(s);

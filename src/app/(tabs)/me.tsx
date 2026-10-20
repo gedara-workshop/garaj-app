@@ -78,7 +78,14 @@ export default function Me() {
               </View>
             </View>
             <ToggleRow label={t("me.weekBefore")} value={weekBefore} onChange={(v) => setSettings({ ...settings, weekBefore: v })} trackColor={switchColors} />
-            <ToggleRow label={t("me.onTheDay")} value={onTheDay} onChange={(v) => setSettings({ ...settings, onTheDay: v })} trackColor={switchColors} last />
+            <ToggleRow label={t("me.onTheDay")} value={onTheDay} onChange={(v) => setSettings({ ...settings, onTheDay: v })} trackColor={switchColors} />
+            <ToggleRow
+              label={t("me.monthlySummary")}
+              value={settings.monthlySummary}
+              onChange={(v) => setSettings({ ...settings, monthlySummary: v })}
+              trackColor={switchColors}
+              last
+            />
           </View>
         </View>
 
