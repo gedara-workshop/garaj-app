@@ -59,6 +59,7 @@ function Navigator() {
           <Stack.Screen name="service/edit" options={{ presentation: "modal" }} />
           <Stack.Screen name="bill/snap" options={{ presentation: "modal" }} />
           <Stack.Screen name="reminders" options={{ presentation: "modal" }} />
+          <Stack.Screen name="account/delete" options={{ presentation: "modal" }} />
         </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="welcome" />
