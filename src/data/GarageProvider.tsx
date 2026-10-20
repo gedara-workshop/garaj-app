@@ -75,7 +75,15 @@ type VehicleRow = {
   photo_path: string | null;
 };
 type RenewalRow = { id: string; vehicle_id: string; kind: RenewalKind; provider: string | null; expires_on: string };
-type ServiceItemRow = { id: string; vehicle_id: string; name: string; interval_km: number; last_done_km: number };
+type ServiceItemRow = {
+  id: string;
+  vehicle_id: string;
+  name: string;
+  interval_km: number;
+  last_done_km: number;
+  interval_months: number | null;
+  last_done_on: string | null;
+};
 type RecordRow = {
   id: string;
   vehicle_id: string;
@@ -119,6 +127,8 @@ const toServiceItem = (r: ServiceItemRow): ServiceItem => ({
   name: r.name,
   intervalKm: r.interval_km,
   lastDoneKm: r.last_done_km,
+  intervalMonths: r.interval_months ?? undefined,
+  lastDoneOn: r.last_done_on ?? undefined,
 });
 
 const toRecord = (r: RecordRow): LogRecord => ({
@@ -210,7 +220,11 @@ async function writeRecord(
       .lt("odometer_km", km);
   }
   if (km && servicedItemIds.length) {
-    await supabase.from("service_items").update({ last_done_km: km }).in("id", servicedItemIds).lte("last_done_km", km);
+    await supabase
+      .from("service_items")
+      .update({ last_done_km: km, last_done_on: r.date })
+      .in("id", servicedItemIds)
+      .lte("last_done_km", km);
   }
 }
 
@@ -427,7 +441,13 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     async (items) => {
       const garageId = query.data?.garageId;
       if (!garageId) throw new Error("Your garage hasn't loaded yet.");
-      const fields = (i: (typeof items)[number]) => ({ name: i.name, interval_km: i.intervalKm, last_done_km: i.lastDoneKm });
+      const fields = (i: (typeof items)[number]) => ({
+        name: i.name,
+        interval_km: i.intervalKm,
+        last_done_km: i.lastDoneKm,
+        interval_months: i.intervalMonths ?? null,
+        last_done_on: i.lastDoneOn ?? null,
+      });
       const added = items.filter((i) => !i.id);
       const changed = items.filter((i) => i.id);
       const results = await Promise.all([

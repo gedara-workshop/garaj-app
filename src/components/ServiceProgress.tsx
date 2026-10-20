@@ -1,7 +1,7 @@
 import { Pressable, View } from "react-native";
 import { formatNumber } from "@/data/format";
 import { serviceProgress, sortServiceItems } from "@/data/rules";
-import { translate } from "@/i18n";
+import { translate, translatePlural } from "@/i18n";
 import type { ServiceItem } from "@/data/types";
 import { Txt } from "./Txt";
 
@@ -20,8 +20,16 @@ export function ServiceProgress({
   return (
     <View className="gap-4 rounded-md border border-line bg-surface-200 p-4">
       {sortServiceItems(items, odometerKm).slice(0, 4).map((item) => {
-        const { remainingKm, share, status } = serviceProgress(item, odometerKm);
-        const over = remainingKm < 0;
+        const { remainingKm, daysLeft, byTime, share, status } = serviceProgress(item, odometerKm);
+        // Say whichever limit is closer: km, or time for items with "or every N months".
+        const over = byTime ? daysLeft! < 0 : remainingKm < 0;
+        const label = byTime
+          ? daysLeft! < 0
+            ? translatePlural("status.daysOver", -daysLeft!)
+            : daysLeft! > 60
+              ? translatePlural("service.monthsLeft", Math.round(daysLeft! / 30))
+              : translatePlural("service.daysLeft", daysLeft!)
+          : translate(over ? "service.kmOver" : "service.kmLeft", { km: formatNumber(Math.abs(remainingKm)) });
         return (
           <Pressable
             key={item.id}
@@ -34,7 +42,7 @@ export function ServiceProgress({
             <View className="flex-row items-baseline justify-between">
               <Txt>{item.name}</Txt>
               <Txt variant="number" className={over ? "text-due" : "text-ink-muted"}>
-                {translate(over ? "service.kmOver" : "service.kmLeft", { km: formatNumber(Math.abs(remainingKm)) })}
+                {label}
               </Txt>
             </View>
             <View className="h-2 overflow-hidden rounded-full bg-surface-300">

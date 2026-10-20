@@ -36,6 +36,8 @@ export type ServiceItem = {
   name: string;
   intervalKm: number;
   lastDoneKm: number;
+  intervalMonths?: number; // "or every N months", whichever comes first
+  lastDoneOn?: string; // ISO date the item was last done
 };
 
 export type LogRecord = {

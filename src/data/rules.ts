@@ -21,13 +21,35 @@ export function renewalStatus(r: Renewal, today = new Date()): Status {
   return "ok";
 }
 
-export function serviceProgress(item: ServiceItem, odometerKm: number) {
+/** The date a time-based item falls due: N months after it was last done. */
+export function serviceDueOn(item: ServiceItem) {
+  if (!item.intervalMonths || !item.lastDoneOn) return undefined;
+  const [y, m, d] = item.lastDoneOn.split("-").map(Number);
+  // Clamp to the month's last day, so 31 Aug + 6 months is 28 Feb, not 3 Mar.
+  const lastDay = new Date(y, m - 1 + item.intervalMonths + 1, 0).getDate();
+  const due = new Date(y, m - 1 + item.intervalMonths, Math.min(d, lastDay));
+  return `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * How far an item is toward its next service, by km and, when it has one, by time: "5,000 km or
+ * 6 months, whichever comes first". byTime says which of the two is closer, so the bar can say so.
+ */
+export function serviceProgress(item: ServiceItem, odometerKm: number, today = new Date()) {
   const used = Math.max(0, odometerKm - item.lastDoneKm);
   const remainingKm = item.intervalKm - used;
-  const share = Math.min(1, used / item.intervalKm);
-  const status: Status =
-    remainingKm < 0 ? "due" : remainingKm <= SOON_KM || share >= SOON_SHARE ? "soon" : "ok";
-  return { remainingKm, share, status };
+  const kmShare = Math.min(1, used / item.intervalKm);
+
+  const dueOn = serviceDueOn(item);
+  const daysLeft = dueOn ? daysUntil(dueOn, today) : undefined;
+  const totalDays = dueOn ? Math.max(1, daysUntil(dueOn, new Date(item.lastDoneOn!))) : 1;
+  const timeShare = daysLeft === undefined ? 0 : Math.min(1, Math.max(0, (totalDays - daysLeft) / totalDays));
+
+  const share = Math.max(kmShare, timeShare);
+  const overdue = remainingKm < 0 || (daysLeft !== undefined && daysLeft < 0);
+  const close = remainingKm <= SOON_KM || (daysLeft !== undefined && daysLeft <= SOON_DAYS) || share >= SOON_SHARE;
+  const status: Status = overdue ? "due" : close ? "soon" : "ok";
+  return { remainingKm, daysLeft, byTime: timeShare > kmShare, share, status };
 }
 
 /** "Mark renewed": a year on from whichever is later, today or the old expiry. */
@@ -63,7 +85,7 @@ export function costPerKm(records: LogRecord[]) {
   return spent / km;
 }
 
-type Suggestion = { name: string; intervalKm: number };
+type Suggestion = { name: string; intervalKm: number; intervalMonths?: number };
 
 /**
  * Common km-based service items to offer when a vehicle has none, four at most (one card's worth).
@@ -78,7 +100,7 @@ export function suggestedServiceItems(type: VehicleType, fuel?: FuelType): Sugge
           { name: translate("serviceItem.brakePads"), intervalKm: 10000 },
         ]
       : [
-          { name: translate("serviceItem.engineOil"), intervalKm: 2000 },
+          { name: translate("serviceItem.engineOil"), intervalKm: 2000, intervalMonths: 3 },
           { name: translate("serviceItem.chainSprocket"), intervalKm: 15000 },
           { name: translate("serviceItem.airFilter"), intervalKm: 10000 },
           { name: translate("serviceItem.sparkPlug"), intervalKm: 10000 },
@@ -86,7 +108,7 @@ export function suggestedServiceItems(type: VehicleType, fuel?: FuelType): Sugge
   }
   if (type === "three-wheeler") {
     return [
-      { name: translate("serviceItem.engineOil"), intervalKm: 3000 },
+      { name: translate("serviceItem.engineOil"), intervalKm: 3000, intervalMonths: 3 },
       { name: translate("serviceItem.airFilter"), intervalKm: 10000 },
       { name: translate("serviceItem.sparkPlug"), intervalKm: 10000 },
       { name: translate("serviceItem.brakeShoes"), intervalKm: 15000 },
@@ -94,7 +116,7 @@ export function suggestedServiceItems(type: VehicleType, fuel?: FuelType): Sugge
   }
   if (type === "lorry") {
     return [
-      { name: translate("serviceItem.oilFilter"), intervalKm: 10000 },
+      { name: translate("serviceItem.oilFilter"), intervalKm: 10000, intervalMonths: 6 },
       { name: translate("serviceItem.fuelFilter"), intervalKm: 20000 },
       { name: translate("serviceItem.airFilter"), intervalKm: 20000 },
       { name: translate("serviceItem.brakeShoes"), intervalKm: 30000 },
@@ -108,9 +130,9 @@ export function suggestedServiceItems(type: VehicleType, fuel?: FuelType): Sugge
     ];
   }
   return [
-    { name: translate("serviceItem.oilFilter"), intervalKm: 5000 },
+    { name: translate("serviceItem.oilFilter"), intervalKm: 5000, intervalMonths: 6 },
     fuel === "diesel" ? { name: translate("serviceItem.fuelFilter"), intervalKm: 20000 } : { name: translate("serviceItem.sparkPlugs"), intervalKm: 40000 },
-    { name: translate("serviceItem.airFilter"), intervalKm: 20000 },
+    { name: translate("serviceItem.airFilter"), intervalKm: 20000, intervalMonths: 12 },
     { name: translate("serviceItem.brakePads"), intervalKm: 30000 },
   ];
 }
