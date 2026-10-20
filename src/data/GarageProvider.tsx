@@ -27,6 +27,12 @@ type Garage = {
   /** Adds a renewal, or updates it when it has an id. */
   saveRenewal: (r: Omit<Renewal, "id"> & { id?: string }) => Promise<void>;
   deleteRenewal: (renewalId: string) => Promise<void>;
+  /**
+   * Adds a log entry, or updates it when it has an id. A km reading past the odometer moves the
+   * odometer forward, and servicedItemIds restarts those service bars from this entry's km.
+   */
+  saveRecord: (r: Omit<LogRecord, "id"> & { id?: string }, servicedItemIds?: string[]) => Promise<void>;
+  deleteRecord: (recordId: string) => Promise<void>;
 };
 
 type GarageData = Pick<Garage, "vehicles" | "renewals" | "serviceItems" | "records"> & { garageId: string };
@@ -57,6 +63,7 @@ type RecordRow = {
   odometer_km: number | null;
   happened_on: string;
   amount_lkr: number | string;
+  litres: number | string | null;
 };
 
 const toVehicle = (r: VehicleRow, photoUrl?: string): Vehicle => ({
@@ -99,7 +106,8 @@ const toRecord = (r: RecordRow): LogRecord => ({
   place: r.place ?? undefined,
   odometerKm: r.odometer_km ?? undefined,
   date: r.happened_on,
-  amountLkr: Number(r.amount_lkr), // numeric(12,2) can come back as a string
+  amountLkr: Number(r.amount_lkr), // numeric columns can come back as strings
+  litres: r.litres == null ? undefined : Number(r.litres),
 });
 
 async function fetchGarage(userId: string): Promise<GarageData> {
@@ -268,6 +276,51 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     [queryClient, queryKey]
   );
 
+  const saveRecord = useCallback<Garage["saveRecord"]>(
+    async (r, servicedItemIds = []) => {
+      const data = query.data;
+      if (!data || !userId) throw new Error("Your garage hasn't loaded yet.");
+      const fields = {
+        kind: r.kind,
+        title: r.title,
+        place: r.place ?? null,
+        odometer_km: r.odometerKm ?? null,
+        happened_on: r.date,
+        amount_lkr: r.amountLkr,
+        litres: r.litres ?? null,
+      };
+      const { error } = r.id
+        ? await supabase.from("records").update(fields).eq("id", r.id)
+        : await supabase
+            .from("records")
+            .insert({ ...fields, garage_id: data.garageId, vehicle_id: r.vehicleId, created_by: userId });
+      if (error) throw error;
+
+      // The entry is what matters. These follow-ups can fail for a logger (no rights to change
+      // vehicles or service items) without losing it.
+      const km = r.odometerKm;
+      const vehicle = data.vehicles.find((v) => v.id === r.vehicleId);
+      if (km && vehicle && km > vehicle.odometerKm) {
+        await supabase.from("vehicles").update({ odometer_km: km, odometer_updated_at: r.date }).eq("id", vehicle.id);
+      }
+      if (km && servicedItemIds.length) {
+        // Only move bars forward: an old bill shouldn't undo a newer service.
+        await supabase.from("service_items").update({ last_done_km: km }).in("id", servicedItemIds).lte("last_done_km", km);
+      }
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [query.data, userId, queryClient, queryKey]
+  );
+
+  const deleteRecord = useCallback<Garage["deleteRecord"]>(
+    async (recordId) => {
+      const { error } = await supabase.from("records").delete().eq("id", recordId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [queryClient, queryKey]
+  );
+
   const value = useMemo<Garage>(
     () => ({
       vehicles: query.data?.vehicles ?? [],
@@ -281,8 +334,22 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       markRenewed,
       saveRenewal,
       deleteRenewal,
+      saveRecord,
+      deleteRecord,
     }),
-    [query.data, query.isPending, query.error, query.refetch, userId, addVehicle, markRenewed, saveRenewal, deleteRenewal]
+    [
+      query.data,
+      query.isPending,
+      query.error,
+      query.refetch,
+      userId,
+      addVehicle,
+      markRenewed,
+      saveRenewal,
+      deleteRenewal,
+      saveRecord,
+      deleteRecord,
+    ]
   );
 
   return <GarageContext.Provider value={value}>{children}</GarageContext.Provider>;

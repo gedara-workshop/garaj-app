@@ -46,4 +46,5 @@ export type LogRecord = {
   odometerKm?: number;
   date: string; // ISO date
   amountLkr: number;
+  litres?: number; // fuel entries
 };

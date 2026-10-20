@@ -40,6 +40,7 @@ function Navigator() {
           <Stack.Screen name="vehicle/[id]" />
           <Stack.Screen name="vehicle/new" options={{ presentation: "modal" }} />
           <Stack.Screen name="renewal/edit" options={{ presentation: "modal" }} />
+          <Stack.Screen name="record/edit" options={{ presentation: "modal" }} />
         </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="welcome" />

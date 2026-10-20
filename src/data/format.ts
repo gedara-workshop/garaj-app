@@ -15,6 +15,13 @@ export const formatDate = (iso: string, withYear = true) => {
   return withYear ? `${base} ${d.getFullYear()}` : base;
 };
 
+/** Today as "2026-10-25" in local time (toISOString would give yesterday before 5:30 am in Sri Lanka). */
+export const todayIso = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** "18,500" or "18500.50" as typed -> 18500.5. NaN when there is no number. */
+export const parseAmount = (s: string) => (s.replace(/[^0-9.]/g, "") ? Number(s.replace(/[^0-9.]/g, "")) : NaN);
+
 /** "2026-10-25" and a real calendar day (not 2026-02-30). */
 export const isIsoDate = (s: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;

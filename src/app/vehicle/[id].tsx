@@ -127,19 +127,26 @@ export default function VehicleDetail() {
       ) : null}
 
       <View className="mt-6 gap-3 px-4">
-        <View className="flex-row items-baseline justify-between">
-          <SectionHeader title="History" />
-          <Txt variant="caption">Amounts in LKR</Txt>
-        </View>
+        <SectionHeader
+          title="History"
+          action="Add"
+          onAction={() => router.push({ pathname: "/record/edit", params: { vehicleId: vehicle.id } })}
+        />
         {myRecords.length ? (
           <View className="rounded-md border border-line bg-surface-200 px-4 py-1">
             {myRecords.map((r, i) => (
-              <TimelineRow key={r.id} record={r} last={i === myRecords.length - 1} />
+              <TimelineRow
+                key={r.id}
+                record={r}
+                last={i === myRecords.length - 1}
+                onPress={() => router.push({ pathname: "/record/edit", params: { id: r.id } })}
+              />
             ))}
           </View>
         ) : (
           <Txt className="text-ink-muted">No services or fuel logged yet.</Txt>
         )}
+        {myRecords.length ? <Txt variant="caption">Amounts in LKR</Txt> : null}
       </View>
     </ScrollView>
   );

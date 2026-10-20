@@ -105,6 +105,7 @@ src/
     vehicle/[id].tsx   vehicle detail
     vehicle/new.tsx    add vehicle (modal)
     renewal/edit.tsx   add (?vehicleId=) or edit (?id=) a renewal (modal)
+    record/edit.tsx    add (?vehicleId=) or edit (?id=) a fuel, service, repair or other entry (modal)
   components/          design system components
   data/
     types.ts           Vehicle, Renewal, ServiceItem, LogRecord
