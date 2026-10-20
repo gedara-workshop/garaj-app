@@ -17,22 +17,24 @@ import { VehicleTypeIcon, vehicleTypeLabel } from "@/components/VehicleTypeIcon"
 import { useGarage } from "@/data/GarageProvider";
 import { formatDate, formatNumber, formatShortLkr } from "@/data/format";
 import { sortRenewals } from "@/data/rules";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export default function VehicleDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { vehicles, renewals, serviceItems, records, markRenewed, isLoading } = useGarage();
   const { colors } = useTheme();
+  const { t } = useT();
   const insets = useSafeAreaInsets();
 
-  if (isLoading) return <ScreenLoading label="Loading vehicle" />;
+  if (isLoading) return <ScreenLoading label={t("vehicle.loading")} />;
 
   const vehicle = vehicles.find((v) => v.id === id);
   if (!vehicle) {
     return (
       <View className="flex-1 items-center justify-center gap-4 bg-surface-100 p-6">
-        <Txt variant="heading">This vehicle isn&apos;t in your garage</Txt>
-        <Button title="Back to home" onPress={() => router.replace("/")} />
+        <Txt variant="heading">{t("vehicle.notFound")}</Txt>
+        <Button title={t("vehicle.backHome")} onPress={() => router.replace("/")} />
       </View>
     );
   }
@@ -44,7 +46,7 @@ export default function VehicleDetail() {
     .sort((a, b) => b.date.localeCompare(a.date));
   const year = new Date().getFullYear();
   const spent = myRecords.filter((r) => new Date(r.date).getFullYear() === year).reduce((s, r) => s + r.amountLkr, 0);
-  const details = [vehicle.year, vehicle.fuel && vehicle.fuel[0].toUpperCase() + vehicle.fuel.slice(1), vehicle.color]
+  const details = [vehicle.year, vehicle.fuel && t(`fuel.${vehicle.fuel}`), vehicle.color]
     .filter(Boolean)
     .join(" · ");
 
@@ -63,7 +65,7 @@ export default function VehicleDetail() {
         )}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t("common.back")}
           onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
           style={{ top: insets.top + 8 }}
           className="absolute left-4 h-11 w-11 items-center justify-center rounded-full bg-surface-200"
@@ -72,7 +74,7 @@ export default function VehicleDetail() {
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Vehicle options"
+          accessibilityLabel={t("vehicle.options")}
           onPress={() => router.push({ pathname: "/vehicle/options", params: { id: vehicle.id } })}
           style={{ top: insets.top + 8 }}
           className="absolute right-4 h-11 w-11 items-center justify-center rounded-full bg-surface-200"
@@ -94,19 +96,19 @@ export default function VehicleDetail() {
 
       <View className="mx-4 mt-4 overflow-hidden rounded-md border border-line bg-surface-200">
         <View className="flex-row">
-          <Stat value={formatNumber(vehicle.odometerKm)} label="km on clock" />
-          <Stat value={formatShortLkr(spent)} label="LKR this year" divider />
-          <Stat value={String(myRecords.length)} label="entries" divider />
+          <Stat value={formatNumber(vehicle.odometerKm)} label={t("card.kmOnClock")} />
+          <Stat value={formatShortLkr(spent)} label={t("card.lkrThisYear")} divider />
+          <Stat value={String(myRecords.length)} label={t("vehicle.entries")} divider />
         </View>
         <View className="flex-row items-center justify-between border-t border-line px-4 py-1">
-          <Txt variant="caption">Odometer updated {formatDate(vehicle.odometerUpdatedAt, false)}</Txt>
+          <Txt variant="caption">{t("vehicle.odometerUpdated", { date: formatDate(vehicle.odometerUpdatedAt, false) })}</Txt>
           <Pressable
             accessibilityRole="button"
             onPress={() => router.push({ pathname: "/vehicle/odometer", params: { id: vehicle.id } })}
             className="min-h-[44px] justify-center"
           >
             <Txt variant="label" className="font-inter-semibold text-brand">
-              Update
+              {t("vehicle.update")}
             </Txt>
           </Pressable>
         </View>
@@ -114,8 +116,8 @@ export default function VehicleDetail() {
 
       <View className="mt-6 gap-3 px-4">
         <SectionHeader
-          title="Renewals"
-          action="Add"
+          title={t("vehicle.renewals")}
+          action={t("common.add")}
           onAction={() => router.push({ pathname: "/renewal/edit", params: { vehicleId: vehicle.id } })}
         />
         {myRenewals.length ? (
@@ -128,14 +130,14 @@ export default function VehicleDetail() {
             />
           ))
         ) : (
-          <Txt className="text-ink-muted">Add the revenue license and insurance dates to get reminders.</Txt>
+          <Txt className="text-ink-muted">{t("vehicle.noRenewals")}</Txt>
         )}
       </View>
 
       <View className="mt-6 gap-3 px-4">
         <SectionHeader
-          title="Service"
-          action={myService.length ? (myService.length > 4 ? `All ${myService.length}` : "Add") : undefined}
+          title={t("vehicle.service")}
+          action={myService.length ? (myService.length > 4 ? t("vehicle.allItems", { n: myService.length }) : t("common.add")) : undefined}
           onAction={() => router.push({ pathname: "/service/edit", params: { vehicleId: vehicle.id } })}
         />
         {myService.length ? (
@@ -146,9 +148,9 @@ export default function VehicleDetail() {
           />
         ) : (
           <View className="items-start gap-3 rounded-md border border-line bg-surface-200 p-4">
-            <Txt className="text-ink-muted">Track oil changes and other km-based services with bars that fill as you drive.</Txt>
+            <Txt className="text-ink-muted">{t("vehicle.serviceIntro")}</Txt>
             <Button
-              title="Set up service tracking"
+              title={t("vehicle.serviceSetup")}
               kind="secondary"
               onPress={() => router.push({ pathname: "/service/edit", params: { vehicleId: vehicle.id } })}
             />
@@ -158,8 +160,8 @@ export default function VehicleDetail() {
 
       <View className="mt-6 gap-3 px-4">
         <SectionHeader
-          title="History"
-          action="Add"
+          title={t("vehicle.history")}
+          action={t("common.add")}
           onAction={() => router.push({ pathname: "/record/edit", params: { vehicleId: vehicle.id } })}
         />
         {myRecords.length ? (
@@ -175,9 +177,9 @@ export default function VehicleDetail() {
             ))}
           </View>
         ) : (
-          <Txt className="text-ink-muted">No services or fuel logged yet.</Txt>
+          <Txt className="text-ink-muted">{t("vehicle.noHistory")}</Txt>
         )}
-        {myRecords.length ? <Txt variant="caption">Amounts in LKR</Txt> : null}
+        {myRecords.length ? <Txt variant="caption">{t("vehicle.amountsInLkr")}</Txt> : null}
       </View>
     </ScrollView>
   );

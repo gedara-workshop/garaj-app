@@ -1,6 +1,7 @@
 import { Text, View } from "react-native";
 import { formatDate } from "@/data/format";
 import { daysUntil, renewalLabel, renewalStatus } from "@/data/rules";
+import { translate } from "@/i18n";
 import type { Renewal, Vehicle } from "@/data/types";
 import { Button } from "./Button";
 import { Plate } from "./Plate";
@@ -25,8 +26,8 @@ export function RenewalTicket({
   const kind = renewalLabel[renewal.kind] + (renewal.provider ? ` (${renewal.provider})` : "");
   const date =
     status === "due"
-      ? `Expired ${formatDate(renewal.expiresOn)}`
-      : `${renewal.kind === "insurance" ? "Renews" : "Expires"} ${formatDate(renewal.expiresOn)}`;
+      ? translate("ticket.expired", { date: formatDate(renewal.expiresOn) })
+      : translate(renewal.kind === "insurance" ? "ticket.renews" : "ticket.expires", { date: formatDate(renewal.expiresOn) });
 
   return (
     <View
@@ -47,14 +48,14 @@ export function RenewalTicket({
         {(onRenewed && status !== "ok") || onEdit ? (
           <View className="mt-2 flex-row gap-2">
             {onRenewed && status !== "ok" ? (
-              <Button title="Mark renewed" kind="secondary" onPress={onRenewed} className="min-h-[44px] px-3" />
+              <Button title={translate("ticket.markRenewed")} kind="secondary" onPress={onRenewed} className="min-h-[44px] px-3" />
             ) : null}
             {onEdit ? (
               <Button
-                title="Edit"
+                title={translate("ticket.edit")}
                 kind="ghost"
                 onPress={onEdit}
-                accessibilityLabel={`Edit ${kind}`}
+                accessibilityLabel={translate("ticket.editLabel", { kind })}
                 className="min-h-[44px] px-3"
               />
             ) : null}
@@ -69,7 +70,7 @@ export function RenewalTicket({
       </View>
       <View className="w-[88px] items-center justify-center px-2 py-3">
         <Text className={`font-mono text-[26px] leading-[30px] ${dayColor[status]}`}>{Math.abs(days)}</Text>
-        <Txt variant="caption">{status === "due" ? "days over" : days === 1 ? "day left" : "days left"}</Txt>
+        <Txt variant="caption">{translate(status === "due" ? "ticket.daysOver" : days === 1 ? "ticket.dayLeft" : "ticket.daysLeft")}</Txt>
       </View>
     </View>
   );

@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { translate } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Button } from "./Button";
 import { Txt } from "./Txt";
@@ -20,9 +21,9 @@ export function ScreenLoading({ label }: { label: string }) {
 export function ScreenError({ onRetry }: { onRetry: () => void }) {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 items-center justify-center gap-4 bg-surface-100 px-6">
-      <Txt variant="heading">Couldn&apos;t load your garage</Txt>
-      <Txt className="text-center text-ink-muted">Check your connection and try again.</Txt>
-      <Button title="Try again" onPress={onRetry} />
+      <Txt variant="heading">{translate("state.loadFailed")}</Txt>
+      <Txt className="text-center text-ink-muted">{translate("state.checkConnection")}</Txt>
+      <Button title={translate("common.tryAgain")} onPress={onRetry} />
     </SafeAreaView>
   );
 }

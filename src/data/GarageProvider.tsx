@@ -4,6 +4,7 @@ import { Alert, AppState } from "react-native";
 import { useAuth } from "./AuthProvider";
 import { readBill as readBillPhoto, type BillDraft, type ReadBill } from "./bill";
 import { removeVehiclePhoto, signPhotoPaths, uploadVehiclePhoto } from "./photos";
+import { translate } from "@/i18n";
 import { todayIso } from "./format";
 import { isNetworkError, loadOutbox, newId, saveOutbox, type QueuedRecord } from "./outbox";
 import { renewedExpiry } from "./rules";
@@ -281,7 +282,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
           const { error } = await supabase.from("vehicles").update({ photo_path: path }).eq("id", vehicle.id);
           if (error) throw error;
         } catch {
-          Alert.alert("Saved without the photo", "The photo didn't upload. Check your connection and add it again later.");
+          Alert.alert(translate("alert.noPhotoTitle"), translate("alert.noPhotoBody"));
         }
       }
 
@@ -309,7 +310,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     },
     onError: (_error, _vars, context) => {
       queryClient.setQueryData(queryKey, context?.previous);
-      Alert.alert("Couldn't save", "Check your connection and try again.");
+      Alert.alert(translate("alert.couldntSaveTitle"), translate("state.checkConnection"));
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   });

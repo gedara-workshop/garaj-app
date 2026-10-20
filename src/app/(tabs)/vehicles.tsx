@@ -11,39 +11,40 @@ import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { VehicleTypeIcon } from "@/components/VehicleTypeIcon";
 import { useGarage } from "@/data/GarageProvider";
-import { plural } from "@/data/format";
 import { daysUntil, renewalStatus, sortRenewals } from "@/data/rules";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export default function Vehicles() {
   const { vehicles, renewals, isLoading, error, refetch } = useGarage();
   const { colors } = useTheme();
+  const { t, tn } = useT();
 
-  if (isLoading) return <ScreenLoading label="Loading your vehicles" />;
+  if (isLoading) return <ScreenLoading label={t("vehicles.loading")} />;
   if (error && vehicles.length === 0) return <ScreenError onRetry={refetch} />;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-surface-100">
       <ScrollView contentContainerClassName="gap-4 px-4 pb-10 pt-2">
         <View className="flex-row items-center justify-between">
-          <Txt variant="display">Vehicles</Txt>
+          <Txt variant="display">{t("tab.vehicles")}</Txt>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Add vehicle"
+            accessibilityLabel={t("home.addVehicle")}
             onPress={() => router.push("/vehicle/new")}
             className="h-11 w-11 items-center justify-center rounded-full bg-brand active:opacity-80"
           >
             <Plus size={20} color={colors["brand-ink"]} />
           </Pressable>
         </View>
-        <Txt className="-mt-2 text-ink-muted">{plural(vehicles.length, "vehicle")}</Txt>
+        <Txt className="-mt-2 text-ink-muted">{tn("home.vehicles", vehicles.length)}</Txt>
 
         {vehicles.length === 0 ? (
           <EmptyState
             icon={Car}
-            title="No vehicles yet"
-            body="Add the vehicles you look after. One bike or a whole fleet, each gets its own reminders."
-            action={<Button title="Add vehicle" icon={Plus} onPress={() => router.push("/vehicle/new")} />}
+            title={t("vehicles.emptyTitle")}
+            body={t("vehicles.emptyBody")}
+            action={<Button title={t("home.addVehicle")} icon={Plus} onPress={() => router.push("/vehicle/new")} />}
           />
         ) : (
           <View className="overflow-hidden rounded-md border border-line bg-surface-200">
@@ -51,7 +52,13 @@ export default function Vehicles() {
               const next = sortRenewals(renewals.filter((r) => r.vehicleId === v.id))[0];
               const status = next ? renewalStatus(next) : "ok";
               const days = next ? daysUntil(next.expiresOn) : 0;
-              const label = !next ? "No renewals" : status === "due" ? "Overdue" : status === "soon" ? `${days} d` : "Good";
+              const label = !next
+                ? t("vehicles.noRenewals")
+                : status === "due"
+                  ? t("vehicles.overdue")
+                  : status === "soon"
+                    ? tn("status.days", days)
+                    : t("vehicles.good");
               return (
                 <Pressable
                   key={v.id}
@@ -85,7 +92,7 @@ export default function Vehicles() {
           className="min-h-[56px] flex-row items-center justify-center gap-2 rounded-md border-2 border-dashed border-line"
         >
           <Plus size={18} color={colors.brand} />
-          <Txt className="font-inter-semibold text-brand">Add another vehicle</Txt>
+          <Txt className="font-inter-semibold text-brand">{t("vehicles.addAnother")}</Txt>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

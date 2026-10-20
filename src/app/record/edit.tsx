@@ -12,13 +12,15 @@ import type { BillDraft, DraftField } from "@/data/bill";
 import { useGarage } from "@/data/GarageProvider";
 import { formatNumber, isIsoDate, parseAmount, todayIso } from "@/data/format";
 import type { RecordKind } from "@/data/types";
+import { useT } from "@/i18n";
+import type { StringKey } from "@/i18n/en";
 import { useTheme } from "@/theme/ThemeProvider";
 
-const kinds: { kind: RecordKind; label: string; example: string }[] = [
-  { kind: "fuel", label: "Fuel", example: "" },
-  { kind: "service", label: "Service", example: "Full service" },
-  { kind: "repair", label: "Repair", example: "Two tyres replaced" },
-  { kind: "other", label: "Other", example: "Car wash" },
+const kinds: { kind: RecordKind; label: StringKey; example?: StringKey }[] = [
+  { kind: "fuel", label: "costs.kind.fuel" },
+  { kind: "service", label: "costs.kind.service", example: "recordForm.exampleService" },
+  { kind: "repair", label: "recordForm.repair", example: "recordForm.exampleRepair" },
+  { kind: "other", label: "costs.kind.other", example: "recordForm.exampleOther" },
 ];
 
 /** Add a log entry (?vehicleId=), edit one (?id=), or check one read from a bill (?vehicleId=&draft=). */
@@ -29,6 +31,7 @@ export default function EditRecord() {
   const [flagged, setFlagged] = useState<DraftField[]>(draft?.flagged ?? []);
   const { vehicles, records, serviceItems, saveRecord, deleteRecord } = useGarage();
   const { colors } = useTheme();
+  const { t } = useT();
 
   const existing = id ? records.find((r) => r.id === id) : undefined;
   const vehicle = vehicles.find((v) => v.id === (existing?.vehicleId ?? vehicleParam));
@@ -53,8 +56,8 @@ export default function EditRecord() {
   if (!vehicle || (id && !existing && !busy)) {
     return (
       <View className="flex-1 items-center justify-center gap-4 bg-surface-100 p-6">
-        <Txt variant="heading">This entry isn&apos;t in your garage</Txt>
-        <Button title="Back" onPress={close} />
+        <Txt variant="heading">{t("recordForm.notFound")}</Txt>
+        <Button title={t("common.back")} onPress={close} />
       </View>
     );
   }
@@ -69,13 +72,13 @@ export default function EditRecord() {
     const lkr = parseAmount(amount);
     const L = litres ? parseAmount(litres) : undefined;
     const reading = km ? parseAmount(km) : undefined;
-    if (!isFuel && !title.trim()) return setError("Say what was done, like Full service.");
-    if (!(lkr >= 0)) return setError("Add the amount in rupees, like 18,500.");
-    if (L !== undefined && !(L > 0)) return setError("Write the litres as a number, like 32.");
-    if (reading !== undefined && !(reading > 0)) return setError("Write the km reading as a number, like 54,320.");
-    if (!isIsoDate(date)) return setError("Write the date as YYYY-MM-DD, like 2026-10-25.");
+    if (!isFuel && !title.trim()) return setError(t("recordForm.needTitle"));
+    if (!(lkr >= 0)) return setError(t("recordForm.needAmount"));
+    if (L !== undefined && !(L > 0)) return setError(t("recordForm.litresFormat"));
+    if (reading !== undefined && !(reading > 0)) return setError(t("common.kmFormat"));
+    if (!isIsoDate(date)) return setError(t("common.dateFormat"));
     if (canRestartBars && serviced.length && !reading) {
-      return setError("Add the km reading so the service bars restart from it.");
+      return setError(t("recordForm.needKmForBars"));
     }
 
     setError("");
@@ -86,7 +89,7 @@ export default function EditRecord() {
           id: existing?.id,
           vehicleId: vehicle!.id,
           kind,
-          title: isFuel ? (L ? `Fuel, ${L} L` : "Fuel") : title.trim(),
+          title: isFuel ? (L ? t("recordForm.fuelTitle", { litres: L }) : t("costs.kind.fuel")) : title.trim(),
           place: place.trim() || undefined,
           odometerKm: reading ? Math.round(reading) : undefined,
           date,
@@ -101,7 +104,7 @@ export default function EditRecord() {
       );
       close();
     } catch {
-      setError("Couldn't save. Check your connection and try again.");
+      setError(t("common.couldntSave"));
       setBusy(false);
     }
   }
@@ -114,7 +117,7 @@ export default function EditRecord() {
       await deleteRecord(existing!.id);
       close();
     } catch {
-      setError("Couldn't delete. Check your connection and try again.");
+      setError(t("common.couldntDelete"));
       setBusy(false);
     }
   }
@@ -127,13 +130,13 @@ export default function EditRecord() {
       <View className="flex-row items-center justify-between px-3 py-2">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t("common.close")}
           onPress={close}
           className="h-11 w-11 items-center justify-center rounded-full"
         >
           <X size={22} color={colors.ink} />
         </Pressable>
-        <Txt variant="heading">{existing ? "Edit entry" : draft ? "Check the bill" : "Add entry"}</Txt>
+        <Txt variant="heading">{existing ? t("recordForm.editTitle") : draft ? t("recordForm.checkTitle") : t("recordForm.addTitle")}</Txt>
         <View className="w-11" />
       </View>
 
@@ -148,7 +151,7 @@ export default function EditRecord() {
 
           {draft ? (
             <Txt className="text-ink-muted">
-              Read from your bill. {flagged.length ? "Check the marked fields, then save." : "Check it over, then save."}
+              {flagged.length ? t("recordForm.readFlagged") : t("recordForm.readClean")}
             </Txt>
           ) : null}
 
@@ -157,7 +160,7 @@ export default function EditRecord() {
               {kinds.map((k) => (
                 <Chip
                   key={k.kind}
-                  label={k.label}
+                  label={t(k.label)}
                   selected={k.kind === kind}
                   onPress={() => {
                     setKind(k.kind);
@@ -172,24 +175,27 @@ export default function EditRecord() {
           {isFuel ? null : (
             <View className="flex-row">
               <Field
-                label="What was done"
+                label={t("recordForm.whatDone")}
                 value={title}
-                onChangeText={(t) => {
-                setTitle(t);
+                onChangeText={(text) => {
+                setTitle(text);
                 checked("title");
               }}
                 flagged={isFlagged("title")}
-                placeholder={kinds.find((k) => k.kind === kind)?.example}
+                placeholder={(() => {
+                  const example = kinds.find((k) => k.kind === kind)?.example;
+                  return example && t(example);
+                })()}
               />
             </View>
           )}
 
           <View className="flex-row gap-3">
             <Field
-              label="Amount (LKR)"
+              label={t("common.amountLkr")}
               value={amount}
-              onChangeText={(t) => {
-                setAmount(t);
+              onChangeText={(text) => {
+                setAmount(text);
                 checked("amount");
               }}
               flagged={isFlagged("amount")}
@@ -199,10 +205,10 @@ export default function EditRecord() {
             />
             {isFuel ? (
               <Field
-                label="Litres"
+                label={t("recordForm.litres")}
                 value={litres}
-                onChangeText={(t) => {
-                setLitres(t);
+                onChangeText={(text) => {
+                setLitres(text);
                 checked("litres");
               }}
                 flagged={isFlagged("litres")}
@@ -216,10 +222,10 @@ export default function EditRecord() {
           <View className="gap-1.5">
             <View className="flex-row gap-3">
               <Field
-                label="Odometer (km)"
+                label={t("recordForm.odometer")}
                 value={km}
-                onChangeText={(t) => {
-                setKm(t);
+                onChangeText={(text) => {
+                setKm(text);
                 checked("km");
               }}
                 flagged={isFlagged("km")}
@@ -228,10 +234,10 @@ export default function EditRecord() {
                 mono
               />
               <Field
-                label="Date"
+                label={t("recordForm.date")}
                 value={date}
-                onChangeText={(t) => {
-                setDate(t);
+                onChangeText={(text) => {
+                setDate(text);
                 checked("date");
               }}
                 flagged={isFlagged("date")}
@@ -240,20 +246,20 @@ export default function EditRecord() {
               />
             </View>
             <Txt variant="caption">
-              Odometer now {formatNumber(vehicle.odometerKm)} km. A higher reading updates it.
+              {t("recordForm.odometerNote", { km: formatNumber(vehicle.odometerKm) })}
             </Txt>
           </View>
 
           <View className="flex-row">
             <Field
-              label="Place"
+              label={t("recordForm.place")}
               value={place}
-              onChangeText={(t) => {
-                setPlace(t);
+              onChangeText={(text) => {
+                setPlace(text);
                 checked("place");
               }}
               flagged={isFlagged("place")}
-              placeholder="Marawila"
+              placeholder={t("recordForm.placeExample")}
             />
           </View>
 
@@ -261,9 +267,9 @@ export default function EditRecord() {
             <View className="gap-2">
               <View>
                 <Txt variant="label" className="font-inter-semibold">
-                  Done in this {kind}
+                  {t(kind === "service" ? "recordForm.doneInService" : "recordForm.doneInRepair")}
                 </Txt>
-                <Txt variant="caption">These service bars restart from this km reading.</Txt>
+                <Txt variant="caption">{t("recordForm.barsRestart")}</Txt>
               </View>
               <View className="flex-row flex-wrap gap-2">
                 {items.map((item) => (
@@ -279,10 +285,10 @@ export default function EditRecord() {
             </Txt>
           ) : null}
 
-          <Button title={busy ? "Saving..." : "Save"} onPress={save} disabled={busy} />
+          <Button title={busy ? t("common.saving") : t("common.save")} onPress={save} disabled={busy} />
           {existing ? (
             <Button
-              title={confirmDelete ? "Tap again to delete" : "Delete entry"}
+              title={confirmDelete ? t("common.tapAgainToDelete") : t("recordForm.delete")}
               kind="ghost"
               onPress={remove}
               disabled={busy}

@@ -60,7 +60,7 @@ Over vehicle photos: white text on a bottom scrim fading to `rgba(0,0,0,0.62)` (
 
 ### Type
 
-- Inter for UI (400, 500, 600, 700, 800), JetBrains Mono for numbers and plates (600, 700), Noto Sans Sinhala for Sinhala (taller line height, 24px for 15px text, so vowel signs don't clip). Noto Sans Tamil is planned and not loaded yet.
+- Inter for UI (400, 500, 600, 700, 800), JetBrains Mono for numbers and plates (600, 700), Noto Sans Sinhala for Sinhala (400, 500, 600, 700; line height 1.6x the size, 24px for 15px text, so vowel signs don't clip). `Txt` switches to the Sinhala face at the matching weight automatically when its text contains Sinhala. Noto Sans Tamil is planned and not loaded yet.
 - Scale (`Txt` variants): display 32/38 bold, title 22/28 semibold, heading 17/24 semibold, body 15/22, label 13/18 medium, caption 12/16 medium muted, stat 20/26 mono, number 14/18 mono.
 
 ### Spacing, radius, shape
@@ -121,6 +121,7 @@ src/
     format.ts          numbers, LKR, dates
     sample.ts          sample garage (Dinal's real vehicles), dates relative to today; no longer loaded by the app
     GarageProvider.tsx Supabase through TanStack Query, the only thing screens talk to
+  i18n/                index.tsx (useT, translate, LanguageProvider), en.ts source strings, si.ts Sinhala
   theme/               token-names.js (shared with tailwind.config.js), tokens.ts, ThemeProvider.tsx
 supabase/migrations/   database schema
 assets/                icons, splash, sample vehicle photos
@@ -152,9 +153,9 @@ Screens only call `useGarage()`. It loads the signed-in person's garage from Sup
 - **Week 1 (done):** project setup, theme, components, Home, Vehicle detail, Add vehicle, Vehicles, Costs, Me (local settings), sample data, schema.
 - **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence (done), photo upload (done), renewals CRUD (done).
 - **Week 3 (done):** fuel and service logging, service items with suggestions, cost per km, Snap a bill (Edge Function + review screen).
-- **Week 4:** reminders and notification prompt (done), vehicle options sheet (done), empty, error and offline states (done), Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
+- **Week 4:** reminders and notification prompt (done), vehicle options sheet (done), empty, error and offline states (done), Sinhala strings (done, needs a native speaker's review), EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
 
-Designed but not built yet: polished Snap a bill review and "could not be read" designs (functional versions exist), Sinhala Home, dark mode variants (dark already works through tokens).
+Designed but not built yet: polished Snap a bill review and "could not be read" designs (functional versions exist), dark mode variants (dark already works through tokens).
 
 Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lucide (uses the car icon for now), bill photos aren't viewable from an entry yet, Tamil font not loaded, ESLint not configured yet.
 
@@ -165,5 +166,6 @@ Known gaps: phone and Google accounts aren't linked, no three-wheeler icon in Lu
 - **Never use the em dash character** anywhere: code, comments, commit messages, docs, UI copy. Use commas, periods or parentheses.
 - Ask before adding a dependency. Use `npx expo install` for Expo and React Native packages so versions match the SDK. This Expo version is newer than most training data: check `node_modules` docs or https://docs.expo.dev before using an API from memory.
 - UI rules: text through `Txt`; colors only through tokens (no hex in components except the photo scrim and placeholder text); join classes with `cn()`; status colors only mean status and always come with an icon and words; touch targets 44 to 48px with accessibility labels on icon-only buttons.
+- **Copy:** every user-facing string goes through `t()` / `tn()` (`useT()` in components) or `translate()` outside React, with the key added to both `src/i18n/en.ts` and `si.ts`. Plurals use `_one` / `_other` keys. Changing language re-mounts the navigator, so module-level labels like `renewalLabel` read the new language.
 - Keep sample data realistic and Sri Lankan (places like Marawila, Chilaw; LKR amounts; real plate formats).
 - Don't start big features (auth, AI) without checking the roadmap above and asking Dinal first.

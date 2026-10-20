@@ -1,14 +1,16 @@
 import type { AuthError } from "@supabase/supabase-js";
+import { translate } from "@/i18n";
+import type { StringKey } from "@/i18n/en";
 
 // Plain words for the errors people can actually hit while signing in.
-const messages: Record<string, string> = {
-  otp_expired: "That code didn't work or has expired. Check it, or get a new one.",
-  over_sms_send_rate_limit: "Too many codes sent. Wait a minute, then try again.",
-  over_request_rate_limit: "Too many tries. Wait a minute, then try again.",
-  sms_send_failed: "We couldn't send the SMS. Check the number and try again.",
-  phone_provider_disabled: "Phone sign in isn't switched on yet.",
-  validation_failed: "Check the number and try again.",
+const messages: Record<string, StringKey> = {
+  otp_expired: "auth.otpExpired",
+  over_sms_send_rate_limit: "auth.tooManyCodes",
+  over_request_rate_limit: "auth.tooManyTries",
+  sms_send_failed: "auth.smsFailed",
+  phone_provider_disabled: "auth.phoneDisabled",
+  validation_failed: "auth.checkNumber",
 };
 
 export const authErrorMessage = (error: AuthError) =>
-  (error.code && messages[error.code]) || "Something went wrong. Check your connection and try again.";
+  translate((error.code && messages[error.code]) || "auth.generic");

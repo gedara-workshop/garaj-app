@@ -1,8 +1,9 @@
 import type { LucideIcon } from "lucide-react-native";
 import type { ReactNode } from "react";
-import { Pressable, Text, type PressableProps } from "react-native";
+import { Pressable, type PressableProps } from "react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import { cn } from "./cn";
+import { Txt } from "./Txt";
 
 type Kind = "primary" | "secondary" | "ghost";
 
@@ -46,7 +47,7 @@ export function Button({
       )}
     >
       {Icon ? <Icon size={18} color={colors[iconColor[kind]]} strokeWidth={2} /> : leading}
-      <Text className={`font-inter-semibold text-[15px] ${label[kind]}`}>{title}</Text>
+      <Txt className={`font-inter-semibold text-[15px] ${label[kind]}`}>{title}</Txt>
     </Pressable>
   );
 }

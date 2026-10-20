@@ -9,9 +9,10 @@ import { Plate } from "@/components/Plate";
 import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
-import { formatNumber, parseAmount, plural } from "@/data/format";
+import { formatNumber, parseAmount } from "@/data/format";
 import { suggestedServiceItems } from "@/data/rules";
 import type { ServiceItem, Vehicle } from "@/data/types";
+import { translate, translatePlural, useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 /** Add service items to a vehicle (?vehicleId=) or edit one (?id=). */
@@ -19,6 +20,7 @@ export default function EditService() {
   const { id, vehicleId } = useLocalSearchParams<{ id?: string; vehicleId?: string }>();
   const { vehicles, serviceItems } = useGarage();
   const { colors } = useTheme();
+  const { t } = useT();
   const [busy, setBusy] = useState(false);
 
   const existing = id ? serviceItems.find((s) => s.id === id) : undefined;
@@ -33,20 +35,20 @@ export default function EditService() {
       <View className="flex-row items-center justify-between px-3 py-2">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t("common.close")}
           onPress={close}
           className="h-11 w-11 items-center justify-center rounded-full"
         >
           <X size={22} color={colors.ink} />
         </Pressable>
-        <Txt variant="heading">{id ? "Edit service item" : "Service items"}</Txt>
+        <Txt variant="heading">{id ? t("serviceForm.editTitle") : t("serviceForm.title")}</Txt>
         <View className="w-11" />
       </View>
 
       {notFound ? (
         <View className="flex-1 items-center justify-center gap-4 p-6">
-          <Txt variant="heading">This service item isn&apos;t in your garage</Txt>
-          <Button title="Back" onPress={close} />
+          <Txt variant="heading">{t("serviceForm.notFound")}</Txt>
+          <Button title={t("common.back")} onPress={close} />
         </View>
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
@@ -80,7 +82,7 @@ type FormProps = { busy: boolean; setBusy: (b: boolean) => void; close: () => vo
 function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehicle: Vehicle; tracked: ServiceItem[] }) {
   const { saveServiceItems } = useGarage();
   const { colors } = useTheme();
-  const trackedNames = new Set(tracked.map((t) => t.name.toLowerCase()));
+  const trackedNames = new Set(tracked.map((item) => item.name.toLowerCase()));
   const suggestions = suggestedServiceItems(vehicle.type, vehicle.fuel).filter((s) => !trackedNames.has(s.name.toLowerCase()));
 
   // A vehicle with nothing tracked yet starts with every suggestion picked.
@@ -96,9 +98,9 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
   async function save() {
     const lastDoneKm = parseAmount(lastDone);
     const intervalKm = parseAmount(every);
-    if (name.trim() && !(intervalKm > 0)) return setError("Add how often it's due, in km, like 5,000.");
-    if (!(lastDoneKm >= 0)) return setError("Write the km reading as a number, like 54,320.");
-    if (count === 0) return setError("Pick an item or add your own.");
+    if (name.trim() && !(intervalKm > 0)) return setError(translate("serviceForm.needInterval"));
+    if (!(lastDoneKm >= 0)) return setError(translate("common.kmFormat"));
+    if (count === 0) return setError(translate("serviceForm.needItem"));
 
     const items = [
       ...suggestions.filter((s) => picked.includes(s.name)),
@@ -111,7 +113,7 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
       await saveServiceItems(items);
       close();
     } catch {
-      setError("Couldn't save. Check your connection and try again.");
+      setError(translate("common.couldntSave"));
       setBusy(false);
     }
   }
@@ -121,22 +123,22 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
       {tracked.length ? (
         <View className="gap-2">
           <Txt variant="label" className="font-inter-semibold">
-            Tracked now
+            {translate("serviceForm.tracked")}
           </Txt>
           <View className="overflow-hidden rounded-md border border-line bg-surface-200">
-            {tracked.map((t, i) => (
+            {tracked.map((item, i) => (
               <Pressable
-                key={t.id}
+                key={item.id}
                 accessibilityRole="button"
-                accessibilityHint="Edit this service item"
-                onPress={() => router.push({ pathname: "/service/edit", params: { id: t.id } })}
+                accessibilityHint={translate("service.editHint")}
+                onPress={() => router.push({ pathname: "/service/edit", params: { id: item.id } })}
                 className={`min-h-[52px] flex-row items-center gap-3 px-4 active:opacity-70 ${
                   i < tracked.length - 1 ? "border-b border-line" : ""
                 }`}
               >
-                <Txt className="flex-1">{t.name}</Txt>
+                <Txt className="flex-1">{item.name}</Txt>
                 <Txt variant="number" className="text-ink-muted">
-                  every {formatNumber(t.intervalKm)} km
+                  {translate("serviceForm.every", { km: formatNumber(item.intervalKm) })}
                 </Txt>
                 <ChevronRight size={18} color={colors["ink-muted"]} />
               </Pressable>
@@ -145,20 +147,20 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
         </View>
       ) : (
         <Txt className="text-ink-muted">
-          Pick what to keep an eye on. Each one gets a bar that fills as you drive toward the next service.
+          {translate("serviceForm.intro")}
         </Txt>
       )}
 
       {suggestions.length ? (
         <View className="gap-2">
           <Txt variant="label" className="font-inter-semibold">
-            Suggested
+            {translate("serviceForm.suggested")}
           </Txt>
           <View className="flex-row flex-wrap gap-2">
             {suggestions.map((s) => (
               <Chip
                 key={s.name}
-                label={`${s.name}, ${formatNumber(s.intervalKm)} km`}
+                label={translate("serviceForm.suggestion", { name: s.name, km: formatNumber(s.intervalKm) })}
                 selected={picked.includes(s.name)}
                 onPress={() => toggle(s.name)}
               />
@@ -169,19 +171,19 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
 
       <View className="gap-2">
         <Txt variant="label" className="font-inter-semibold">
-          Add your own
+          {translate("serviceForm.own")}
         </Txt>
         <View className="flex-row gap-3">
-          <Field label="Item" value={name} onChangeText={setName} placeholder="Gear oil" />
-          <Field label="Every (km)" value={every} onChangeText={setEvery} placeholder="40,000" keyboardType="number-pad" mono />
+          <Field label={translate("serviceForm.item")} value={name} onChangeText={setName} placeholder={translate("serviceForm.itemExample")} />
+          <Field label={translate("serviceForm.everyKm")} value={every} onChangeText={setEvery} placeholder="40,000" keyboardType="number-pad" mono />
         </View>
       </View>
 
       <View className="gap-1.5">
         <View className="flex-row">
-          <Field label="Last done at (km)" value={lastDone} onChangeText={setLastDone} keyboardType="number-pad" mono />
+          <Field label={translate("serviceForm.lastDone")} value={lastDone} onChangeText={setLastDone} keyboardType="number-pad" mono />
         </View>
-        <Txt variant="caption">Not sure? Leave today&apos;s reading and the bars count from now.</Txt>
+        <Txt variant="caption">{translate("serviceForm.lastDoneNote")}</Txt>
       </View>
 
       {error ? (
@@ -190,7 +192,7 @@ function AddItems({ vehicle, tracked, busy, setBusy, close }: FormProps & { vehi
         </Txt>
       ) : null}
       <Button
-        title={busy ? "Saving..." : count ? `Add ${plural(count, "item")}` : "Add items"}
+        title={busy ? translate("common.saving") : count ? translatePlural("serviceForm.addCount", count) : translate("serviceForm.addItems")}
         onPress={save}
         disabled={busy}
       />
@@ -211,9 +213,9 @@ function EditOne({ item, busy, setBusy, close }: FormProps & { item?: ServiceIte
   async function save() {
     const intervalKm = parseAmount(every);
     const lastDoneKm = parseAmount(lastDone);
-    if (!name.trim()) return setError("Give it a name, like Oil and filter.");
-    if (!(intervalKm > 0)) return setError("Add how often it's due, in km, like 5,000.");
-    if (!(lastDoneKm >= 0)) return setError("Write the km reading as a number, like 54,320.");
+    if (!name.trim()) return setError(translate("serviceForm.needName"));
+    if (!(intervalKm > 0)) return setError(translate("serviceForm.needInterval"));
+    if (!(lastDoneKm >= 0)) return setError(translate("common.kmFormat"));
     setError("");
     setBusy(true);
     try {
@@ -222,7 +224,7 @@ function EditOne({ item, busy, setBusy, close }: FormProps & { item?: ServiceIte
       ]);
       close();
     } catch {
-      setError("Couldn't save. Check your connection and try again.");
+      setError(translate("common.couldntSave"));
       setBusy(false);
     }
   }
@@ -235,7 +237,7 @@ function EditOne({ item, busy, setBusy, close }: FormProps & { item?: ServiceIte
       await deleteServiceItem(item!.id);
       close();
     } catch {
-      setError("Couldn't delete. Check your connection and try again.");
+      setError(translate("common.couldntDelete"));
       setBusy(false);
     }
   }
@@ -243,20 +245,20 @@ function EditOne({ item, busy, setBusy, close }: FormProps & { item?: ServiceIte
   return (
     <>
       <View className="flex-row">
-        <Field label="Item" value={name} onChangeText={setName} />
+        <Field label={translate("serviceForm.item")} value={name} onChangeText={setName} />
       </View>
       <View className="flex-row gap-3">
-        <Field label="Every (km)" value={every} onChangeText={setEvery} keyboardType="number-pad" mono />
-        <Field label="Last done at (km)" value={lastDone} onChangeText={setLastDone} keyboardType="number-pad" mono />
+        <Field label={translate("serviceForm.everyKm")} value={every} onChangeText={setEvery} keyboardType="number-pad" mono />
+        <Field label={translate("serviceForm.lastDone")} value={lastDone} onChangeText={setLastDone} keyboardType="number-pad" mono />
       </View>
       {error ? (
         <Txt accessibilityRole="alert" className="font-inter-medium text-[13px] text-due">
           {error}
         </Txt>
       ) : null}
-      <Button title={busy ? "Saving..." : "Save"} onPress={save} disabled={busy} />
+      <Button title={busy ? translate("common.saving") : translate("common.save")} onPress={save} disabled={busy} />
       <Button
-        title={confirmDelete ? "Tap again to delete" : "Stop tracking this"}
+        title={confirmDelete ? translate("common.tapAgainToDelete") : translate("serviceForm.stop")}
         kind="ghost"
         onPress={remove}
         disabled={busy}

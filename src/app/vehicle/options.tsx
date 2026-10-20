@@ -7,6 +7,7 @@ import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
 import { formatDate, formatNumber } from "@/data/format";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 type Confirm = "sold" | "delete" | null;
@@ -15,6 +16,7 @@ type Confirm = "sold" | "delete" | null;
 export default function VehicleOptions() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { vehicles, markSold, deleteVehicle } = useGarage();
+  const { t } = useT();
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +34,7 @@ export default function VehicleOptions() {
       await (action === "sold" ? markSold(vehicle!.id) : deleteVehicle(vehicle!.id));
       router.dismissTo("/");
     } catch {
-      setError("Couldn't save. Check your connection and try again.");
+      setError(t("common.couldntSave"));
       setBusy(false);
     }
   }
@@ -44,25 +46,25 @@ export default function VehicleOptions() {
         <Txt variant="heading">{vehicleName(vehicle)}</Txt>
       </View>
 
-      <Row icon={Pencil} label="Edit details" onPress={() => go("/vehicle/new")} />
-      <Row icon={Camera} label={vehicle.photo ? "Change photo" : "Add a photo"} onPress={() => go("/vehicle/new")} />
+      <Row icon={Pencil} label={t("options.edit")} onPress={() => go("/vehicle/new")} />
+      <Row icon={Camera} label={vehicle.photo ? t("vehicleForm.changePhoto") : t("options.addPhoto")} onPress={() => go("/vehicle/new")} />
       <Row
         icon={Gauge}
-        label="Update odometer"
-        hint={`${formatNumber(vehicle.odometerKm)} km on ${formatDate(vehicle.odometerUpdatedAt, false)}`}
+        label={t("odometer.title")}
+        hint={t("options.odometerHint", { km: formatNumber(vehicle.odometerKm), date: formatDate(vehicle.odometerUpdatedAt, false) })}
         onPress={() => go("/vehicle/odometer")}
       />
       <Row
         icon={Handshake}
-        label={confirm === "sold" ? "Tap again to mark as sold" : "Sold this vehicle"}
-        hint="Keeps its history, stops reminders, hides it from your garage"
+        label={confirm === "sold" ? t("options.soldConfirm") : t("options.sold")}
+        hint={t("options.soldHint")}
         onPress={() => finish("sold")}
         disabled={busy}
       />
       <Row
         icon={Trash2}
-        label={confirm === "delete" ? "Tap again to delete for good" : "Delete vehicle"}
-        hint="Removes its renewals, services and history. This can't be undone."
+        label={confirm === "delete" ? t("options.deleteConfirm") : t("options.delete")}
+        hint={t("options.deleteHint")}
         onPress={() => finish("delete")}
         disabled={busy}
       />

@@ -1,5 +1,6 @@
 import { TriangleAlert } from "lucide-react-native";
 import { Pressable, TextInput, View } from "react-native";
+import { translate } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Txt } from "./Txt";
 
@@ -28,7 +29,7 @@ export function CheckThis() {
     <View className="flex-row items-center gap-1">
       <TriangleAlert size={14} color={colors.soon} />
       <Txt variant="caption" className="text-soon">
-        Check this
+        {translate("form.checkThis")}
       </Txt>
     </View>
   );
@@ -50,7 +51,7 @@ export function Field({
         {...props}
         accessibilityLabel={label}
         placeholderTextColor="#8a8f8c"
-        accessibilityHint={flagged ? "Check this, the bill was hard to read here" : undefined}
+        accessibilityHint={flagged ? translate("form.checkThisHint") : undefined}
         className={`h-12 rounded-sm px-3.5 text-[16px] text-ink ${mono ? "font-mono" : "font-inter"} ${
           flagged ? "border-2 border-soon bg-soon-tint" : "border border-line bg-surface-200"
         }`}

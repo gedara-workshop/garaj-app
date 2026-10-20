@@ -11,6 +11,7 @@ import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { UnreadableBill } from "@/data/bill";
 import { useGarage } from "@/data/GarageProvider";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 type Step = "pick" | "reading" | "unreadable" | "failed";
@@ -19,6 +20,7 @@ type Step = "pick" | "reading" | "unreadable" | "failed";
 export default function SnapBill() {
   const { vehicles, readBill } = useGarage();
   const { colors } = useTheme();
+  const { t } = useT();
   const [vehicleId, setVehicleId] = useState(vehicles[0]?.id);
   const [photo, setPhoto] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("pick");
@@ -58,28 +60,28 @@ export default function SnapBill() {
       <View className="flex-row items-center justify-between px-3 py-2">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t("common.close")}
           onPress={close}
           className="h-11 w-11 items-center justify-center rounded-full"
         >
           <X size={22} color={colors.ink} />
         </Pressable>
-        <Txt variant="heading">Snap a bill</Txt>
+        <Txt variant="heading">{t("bill.title")}</Txt>
         <View className="w-11" />
       </View>
 
       {vehicles.length === 0 ? (
         <View className="flex-1 items-center justify-center gap-4 p-6">
-          <Txt variant="heading">Add a vehicle first</Txt>
-          <Txt className="text-center text-ink-muted">Bills are logged against a vehicle.</Txt>
-          <Button title="Add vehicle" onPress={() => router.replace("/vehicle/new")} />
+          <Txt variant="heading">{t("bill.needVehicle")}</Txt>
+          <Txt className="text-center text-ink-muted">{t("bill.needVehicleBody")}</Txt>
+          <Button title={t("home.addVehicle")} onPress={() => router.replace("/vehicle/new")} />
         </View>
       ) : (
         <ScrollView contentContainerClassName="gap-5 px-4 pb-10">
           {vehicles.length > 1 ? (
             <View className="gap-2">
               <Txt variant="label" className="font-inter-semibold">
-                Which vehicle
+                {t("bill.whichVehicle")}
               </Txt>
               <View className="flex-row flex-wrap gap-2">
                 {vehicles.map((v) => (
@@ -100,48 +102,48 @@ export default function SnapBill() {
             </View>
           ) : (
             <Txt className="text-ink-muted">
-              Take a photo of a fuel receipt or service bill. Garaj reads it and fills in the entry for you to check.
+              {t("bill.intro")}
             </Txt>
           )}
 
           {step === "reading" ? (
             <View className="flex-row items-center justify-center gap-3 py-2" accessibilityLiveRegion="polite">
               <ActivityIndicator color={colors.brand} />
-              <Txt>Reading the bill...</Txt>
+              <Txt>{t("bill.reading")}</Txt>
             </View>
           ) : null}
 
           {step === "unreadable" ? (
             <View accessibilityRole="alert" className="gap-1">
-              <Txt variant="heading">Couldn&apos;t read this bill</Txt>
+              <Txt variant="heading">{t("bill.unreadable")}</Txt>
               <Txt className="text-ink-muted">
-                It may be blurry, dark or cut off. Try again in good light with the whole bill in the frame.
+                {t("bill.unreadableBody")}
               </Txt>
             </View>
           ) : null}
 
           {step === "failed" ? (
             <View accessibilityRole="alert" className="gap-1">
-              <Txt variant="heading">Couldn&apos;t send the bill</Txt>
-              <Txt className="text-ink-muted">Check your connection and try again, or enter it yourself.</Txt>
+              <Txt variant="heading">{t("bill.failed")}</Txt>
+              <Txt className="text-ink-muted">{t("bill.failedBody")}</Txt>
             </View>
           ) : null}
 
           {cameraDenied ? (
             <Txt className="text-ink-muted">
-              Camera access is off for Garaj. Turn it on in your phone&apos;s settings, or choose a photo instead.
+              {t("bill.cameraOff")}
             </Txt>
           ) : null}
 
           {step !== "reading" ? (
             <View className="gap-3">
-              <Button title={photo ? "Take another photo" : "Take a photo"} icon={Camera} onPress={takePhoto} />
+              <Button title={photo ? t("bill.takeAnother") : t("bill.take")} icon={Camera} onPress={takePhoto} />
               {step === "failed" && photo ? (
-                <Button title="Try again" kind="secondary" onPress={() => read(photo)} />
+                <Button title={t("common.tryAgain")} kind="secondary" onPress={() => read(photo)} />
               ) : (
-                <Button title="Choose from photos" kind="secondary" icon={ImageIcon} onPress={choosePhoto} />
+                <Button title={t("bill.choose")} kind="secondary" icon={ImageIcon} onPress={choosePhoto} />
               )}
-              <Button title="Enter it manually" kind="ghost" onPress={manual} />
+              <Button title={t("bill.manual")} kind="ghost" onPress={manual} />
             </View>
           ) : null}
         </ScrollView>

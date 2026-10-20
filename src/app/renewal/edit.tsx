@@ -12,6 +12,7 @@ import { useGarage } from "@/data/GarageProvider";
 import { isIsoDate } from "@/data/format";
 import { renewalLabel } from "@/data/rules";
 import type { RenewalKind } from "@/data/types";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const kinds: RenewalKind[] = ["revenue_license", "insurance", "emission_test", "driving_license"];
@@ -21,6 +22,7 @@ export default function EditRenewal() {
   const { id, vehicleId: vehicleParam } = useLocalSearchParams<{ id?: string; vehicleId?: string }>();
   const { vehicles, renewals, saveRenewal, deleteRenewal } = useGarage();
   const { colors } = useTheme();
+  const { t } = useT();
 
   const existing = id ? renewals.find((r) => r.id === id) : undefined;
   const vehicle = vehicles.find((v) => v.id === (existing?.vehicleId ?? vehicleParam));
@@ -38,14 +40,14 @@ export default function EditRenewal() {
   if (!vehicle || (id && !existing && !busy)) {
     return (
       <View className="flex-1 items-center justify-center gap-4 bg-surface-100 p-6">
-        <Txt variant="heading">This renewal isn&apos;t in your garage</Txt>
-        <Button title="Back" onPress={close} />
+        <Txt variant="heading">{t("renewalForm.notFound")}</Txt>
+        <Button title={t("common.back")} onPress={close} />
       </View>
     );
   }
 
   async function save() {
-    if (!isIsoDate(expiresOn)) return setError("Write the date as YYYY-MM-DD, like 2026-10-25.");
+    if (!isIsoDate(expiresOn)) return setError(t("common.dateFormat"));
     setError("");
     setBusy(true);
     try {
@@ -58,7 +60,7 @@ export default function EditRenewal() {
       });
       close();
     } catch {
-      setError("Couldn't save. Check your connection and try again.");
+      setError(t("common.couldntSave"));
       setBusy(false);
     }
   }
@@ -71,7 +73,7 @@ export default function EditRenewal() {
       await deleteRenewal(existing!.id);
       close();
     } catch {
-      setError("Couldn't delete. Check your connection and try again.");
+      setError(t("common.couldntDelete"));
       setBusy(false);
     }
   }
@@ -81,13 +83,13 @@ export default function EditRenewal() {
       <View className="flex-row items-center justify-between px-3 py-2">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t("common.close")}
           onPress={close}
           className="h-11 w-11 items-center justify-center rounded-full"
         >
           <X size={22} color={colors.ink} />
         </Pressable>
-        <Txt variant="heading">{existing ? "Edit renewal" : "Add renewal"}</Txt>
+        <Txt variant="heading">{existing ? t("renewalForm.editTitle") : t("renewalForm.addTitle")}</Txt>
         <View className="w-11" />
       </View>
 
@@ -102,7 +104,7 @@ export default function EditRenewal() {
 
           <View className="gap-2">
             <Txt variant="label" className="font-inter-semibold">
-              What renews
+              {t("renewalForm.what")}
             </Txt>
             <View className="flex-row flex-wrap gap-2">
               {kinds.map((k) => (
@@ -113,21 +115,21 @@ export default function EditRenewal() {
 
           {kind === "insurance" ? (
             <View className="flex-row">
-              <Field label="Insurance company" value={provider} onChangeText={setProvider} placeholder="Ceylinco" />
+              <Field label={t("renewalForm.company")} value={provider} onChangeText={setProvider} placeholder="Ceylinco" />
             </View>
           ) : null}
 
           <View className="gap-1.5">
             <View className="flex-row">
               <Field
-                label={kind === "insurance" ? "Renews on" : "Expires on"}
+                label={kind === "insurance" ? t("renewalForm.renewsOn") : t("renewalForm.expiresOn")}
                 value={expiresOn}
                 onChangeText={setExpiresOn}
                 placeholder="YYYY-MM-DD"
                 mono
               />
             </View>
-            <Txt variant="caption">You&apos;ll get a reminder 30 days before, 7 days before and on the day.</Txt>
+            <Txt variant="caption">{t("renewalForm.reminderNote")}</Txt>
           </View>
 
           {error ? (
@@ -136,10 +138,10 @@ export default function EditRenewal() {
             </Txt>
           ) : null}
 
-          <Button title={busy ? "Saving..." : "Save"} onPress={save} disabled={busy} />
+          <Button title={busy ? t("common.saving") : t("common.save")} onPress={save} disabled={busy} />
           {existing ? (
             <Button
-              title={confirmDelete ? "Tap again to delete" : "Delete renewal"}
+              title={confirmDelete ? t("common.tapAgainToDelete") : t("renewalForm.delete")}
               kind="ghost"
               onPress={remove}
               disabled={busy}

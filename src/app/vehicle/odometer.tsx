@@ -10,6 +10,7 @@ import { Txt } from "@/components/Txt";
 import { vehicleName } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
 import { formatDate, formatNumber, parseAmount } from "@/data/format";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 /** Update odometer: the reading that drives every service bar. */
@@ -17,6 +18,7 @@ export default function UpdateOdometer() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { vehicles, setOdometer } = useGarage();
   const { colors } = useTheme();
+  const { t } = useT();
   const vehicle = vehicles.find((v) => v.id === id);
   const [km, setKm] = useState("");
   const [error, setError] = useState("");
@@ -28,11 +30,11 @@ export default function UpdateOdometer() {
 
   async function save() {
     const reading = parseAmount(km);
-    if (!(reading > 0)) return setError("Write the km reading as a number, like 54,320.");
+    if (!(reading > 0)) return setError(t("common.kmFormat"));
     // A lower reading is usually a typo, but allow it on a second tap to fix a wrong one.
     if (reading < vehicle!.odometerKm && !confirmLower) {
       setConfirmLower(true);
-      return setError(`That's lower than before (${formatNumber(vehicle!.odometerKm)} km). Tap Save again if it's right.`);
+      return setError(t("odometer.lower", { km: formatNumber(vehicle!.odometerKm) }));
     }
     setError("");
     setBusy(true);
@@ -40,7 +42,7 @@ export default function UpdateOdometer() {
       await setOdometer(vehicle!.id, Math.round(reading));
       close();
     } catch {
-      setError("Couldn't save. Check your connection and try again.");
+      setError(t("common.couldntSave"));
       setBusy(false);
     }
   }
@@ -50,13 +52,13 @@ export default function UpdateOdometer() {
       <View className="flex-row items-center justify-between px-3 py-2">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t("common.close")}
           onPress={close}
           className="h-11 w-11 items-center justify-center rounded-full"
         >
           <X size={22} color={colors.ink} />
         </Pressable>
-        <Txt variant="heading">Update odometer</Txt>
+        <Txt variant="heading">{t("odometer.title")}</Txt>
         <View className="w-11" />
       </View>
 
@@ -70,10 +72,10 @@ export default function UpdateOdometer() {
         <View className="gap-1.5">
           <View className="flex-row">
             <Field
-              label="Km on the clock now"
+              label={t("odometer.now")}
               value={km}
-              onChangeText={(t) => {
-                setKm(t);
+              onChangeText={(text) => {
+                setKm(text);
                 setConfirmLower(false);
               }}
               placeholder={formatNumber(vehicle.odometerKm)}
@@ -83,7 +85,7 @@ export default function UpdateOdometer() {
             />
           </View>
           <Txt variant="caption">
-            Last reading {formatNumber(vehicle.odometerKm)} km on {formatDate(vehicle.odometerUpdatedAt)}.
+            {t("odometer.last", { km: formatNumber(vehicle.odometerKm), date: formatDate(vehicle.odometerUpdatedAt) })}
           </Txt>
         </View>
         {error ? (
@@ -91,7 +93,7 @@ export default function UpdateOdometer() {
             {error}
           </Txt>
         ) : null}
-        <Button title={busy ? "Saving..." : "Save"} onPress={save} disabled={busy} />
+        <Button title={busy ? t("common.saving") : t("common.save")} onPress={save} disabled={busy} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -11,13 +11,14 @@ import { Txt } from "@/components/Txt";
 import { VehicleCard } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
 import { remindersSupported, useReminders } from "@/data/RemindersProvider";
-import { plural } from "@/data/format";
 import { renewalStatus, sortRenewals } from "@/data/rules";
+import { translate, useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export default function Home() {
   const { vehicles, renewals, serviceItems, records, isLoading, error, refetch, pendingCount } = useGarage();
   const { colors } = useTheme();
+  const { t, tn } = useT();
   const { width } = useWindowDimensions();
   const { permission, promptDismissed } = useReminders();
 
@@ -27,7 +28,7 @@ export default function Home() {
     if (shouldAsk) router.push("/reminders");
   }, [shouldAsk]);
 
-  if (isLoading) return <ScreenLoading label="Loading your garage" />;
+  if (isLoading) return <ScreenLoading label={t("home.loading")} />;
   if (error && vehicles.length === 0) return <ScreenError onRetry={refetch} />;
   if (vehicles.length === 0) return <EmptyHome />;
 
@@ -55,20 +56,20 @@ export default function Home() {
         <View className="flex-row items-center justify-between px-4">
           <Txt className="font-inter-extrabold text-[26px] tracking-tight text-brand">garaj</Txt>
           <View className="flex-row gap-2">
-            <IconButton label="Add vehicle" onPress={() => router.push("/vehicle/new")}>
+            <IconButton label={t("home.addVehicle")} onPress={() => router.push("/vehicle/new")}>
               <Plus size={20} color={colors.ink} />
             </IconButton>
-            <IconButton label="Notifications" onPress={() => router.push("/me")}>
+            <IconButton label={t("home.reminders")} onPress={() => router.push("/me")}>
               <Bell size={20} color={colors.ink} />
             </IconButton>
           </View>
         </View>
 
         <View className="px-4">
-          <Txt variant="display">My Garaj</Txt>
+          <Txt variant="display">{t("home.title")}</Txt>
           <Txt className="mt-1 text-ink-muted">
-            {plural(vehicles.length, "vehicle")}
-            {overdue ? `, ${overdue} overdue` : ", nothing overdue"}
+            {tn("home.vehicles", vehicles.length)}
+            {overdue ? tn("home.overdue", overdue) : t("home.nothingOverdue")}
           </Txt>
         </View>
 
@@ -76,8 +77,7 @@ export default function Home() {
           <View className="mx-4 flex-row items-center gap-3 rounded-md border border-line bg-surface-200 px-4 py-3">
             <CloudOff size={18} color={colors["ink-muted"]} />
             <Txt className="flex-1 text-[14px]">
-              {plural(pendingCount, "entry", "entries")} waiting for a connection. {pendingCount === 1 ? "It uploads" : "They upload"} by
-              itself.
+              {tn("home.pending", pendingCount)}
             </Txt>
           </View>
         ) : null}
@@ -101,7 +101,7 @@ export default function Home() {
         </ScrollView>
 
         <View className="gap-3 px-4">
-          <SectionHeader title="Coming up" action="See all" onAction={() => router.push("/vehicles")} />
+          <SectionHeader title={t("home.comingUp")} action={t("home.seeAll")} onAction={() => router.push("/vehicles")} />
           {upcoming.map((r) => (
             <RenewalTicket key={r.id} renewal={r} vehicle={vehicles.find((v) => v.id === r.vehicleId)} />
           ))}
@@ -110,7 +110,7 @@ export default function Home() {
 
       <View className="absolute bottom-5 right-4">
         <Button
-          title="Snap a bill"
+          title={t("home.snapBill")}
           icon={Camera}
           className="rounded-full px-6 shadow-lg"
           onPress={() => router.push("/bill/snap")}
@@ -136,17 +136,17 @@ function IconButton({ label, onPress, children }: { label: string; onPress: () =
 function EmptyHome() {
   const { colors } = useTheme();
   const steps = [
-    { icon: Plus, text: "Add your vehicle, with a photo if you like" },
-    { icon: FileClock, text: "Add the revenue license and insurance dates" },
-    { icon: Bell, text: "Get a reminder 30 days before, 7 days before and on the day" },
+    { icon: Plus, text: translate("empty.step1") },
+    { icon: FileClock, text: translate("empty.step2") },
+    { icon: Bell, text: translate("empty.step3") },
   ];
   return (
     <SafeAreaView edges={["top"]} className="flex-1 justify-between bg-surface-100 px-4 pb-6 pt-2">
       <View className="gap-6">
         <Txt className="font-inter-extrabold text-[26px] tracking-tight text-brand">garaj</Txt>
         <View className="gap-1">
-          <Txt variant="display">Welcome</Txt>
-          <Txt className="text-ink-muted">Let&apos;s add your first vehicle. It takes about a minute.</Txt>
+          <Txt variant="display">{translate("empty.title")}</Txt>
+          <Txt className="text-ink-muted">{translate("empty.body")}</Txt>
         </View>
         <View className="gap-4 rounded-lg border border-line bg-surface-200 p-4">
           {steps.map(({ icon: Icon, text }, i) => (
@@ -163,9 +163,9 @@ function EmptyHome() {
             </View>
           ))}
         </View>
-        <Txt variant="caption">Car, jeep, van, pickup, bike, three-wheeler or lorry.</Txt>
+        <Txt variant="caption">{translate("empty.types")}</Txt>
       </View>
-      <Button title="Add vehicle" icon={Plus} onPress={() => router.push("/vehicle/new")} />
+      <Button title={translate("home.addVehicle")} icon={Plus} onPress={() => router.push("/vehicle/new")} />
     </SafeAreaView>
   );
 }

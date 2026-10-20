@@ -1,6 +1,7 @@
 import { Pressable, View } from "react-native";
 import { formatNumber } from "@/data/format";
 import { serviceProgress, sortServiceItems } from "@/data/rules";
+import { translate } from "@/i18n";
 import type { ServiceItem } from "@/data/types";
 import { Txt } from "./Txt";
 
@@ -27,13 +28,13 @@ export function ServiceProgress({
             onPress={onPressItem && (() => onPressItem(item))}
             disabled={!onPressItem}
             accessibilityRole={onPressItem ? "button" : undefined}
-            accessibilityHint={onPressItem ? "Edit this service item" : undefined}
+            accessibilityHint={onPressItem ? translate("service.editHint") : undefined}
             className="gap-2 active:opacity-70"
           >
             <View className="flex-row items-baseline justify-between">
               <Txt>{item.name}</Txt>
               <Txt variant="number" className={over ? "text-due" : "text-ink-muted"}>
-                {over ? `${formatNumber(-remainingKm)} km over` : `${formatNumber(remainingKm)} km left`}
+                {translate(over ? "service.kmOver" : "service.kmLeft", { km: formatNumber(Math.abs(remainingKm)) })}
               </Txt>
             </View>
             <View className="h-2 overflow-hidden rounded-full bg-surface-300">
