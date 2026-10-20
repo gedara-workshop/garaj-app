@@ -1,4 +1,8 @@
+import { currentLang } from "@/i18n";
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// Full names read better in Sinhala than shortened ones.
+const MONTHS_SI = ["ජනවාරි", "පෙබරවාරි", "මාර්තු", "අප්‍රේල්", "මැයි", "ජූනි", "ජූලි", "අගෝස්තු", "සැප්තැම්බර්", "ඔක්තෝබර්", "නොවැම්බර්", "දෙසැම්බර්"];
 
 export const formatNumber = (n: number) =>
   Math.round(n)
@@ -11,6 +15,10 @@ export const formatShortLkr = (n: number) =>
 
 export const formatDate = (iso: string, withYear = true) => {
   const d = new Date(iso);
+  if (currentLang() === "si") {
+    const base = `${MONTHS_SI[d.getMonth()]} ${d.getDate()}`;
+    return withYear ? `${d.getFullYear()} ${base}` : base;
+  }
   const base = `${d.getDate()} ${MONTHS[d.getMonth()]}`;
   return withYear ? `${base} ${d.getFullYear()}` : base;
 };
@@ -29,9 +37,6 @@ export const isIsoDate = (s: string) => {
   const date = new Date(y, m - 1, d);
   return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
 };
-
-export const plural = (n: number, one: string, many = `${one}s`) =>
-  `${formatNumber(n)} ${Math.abs(n) === 1 ? one : many}`;
 
 /** "94771234567" or "+94771234567" -> "+94 77 123 4567". Other numbers come back as given. */
 export const formatPhone = (phone: string) => {

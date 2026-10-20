@@ -1,7 +1,12 @@
 import "../../global.css";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from "@expo-google-fonts/inter";
 import { JetBrainsMono_600SemiBold, JetBrainsMono_700Bold } from "@expo-google-fonts/jetbrains-mono";
-import { NotoSansSinhala_400Regular } from "@expo-google-fonts/noto-sans-sinhala";
+import {
+  NotoSansSinhala_400Regular,
+  NotoSansSinhala_500Medium,
+  NotoSansSinhala_600SemiBold,
+  NotoSansSinhala_700Bold,
+} from "@expo-google-fonts/noto-sans-sinhala";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -12,6 +17,7 @@ import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/data/AuthProvider";
 import { GarageProvider } from "@/data/GarageProvider";
 import { RemindersProvider } from "@/data/RemindersProvider";
+import { LanguageProvider, useT } from "@/i18n";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 SplashScreen.preventAutoHideAsync();
@@ -23,6 +29,8 @@ const queryClient = new QueryClient();
 function Navigator() {
   const { scheme, colors } = useTheme();
   const { session, isLoading } = useAuth();
+  // Changing language re-mounts the screens so every label, date and count switches at once.
+  const { lang } = useT();
 
   // Keep the splash up until the saved session is read, so signed-in people never see a flash of sign in.
   useEffect(() => {
@@ -34,12 +42,17 @@ function Navigator() {
   return (
     <>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors["surface-100"] } }}>
+      <Stack key={lang} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors["surface-100"] } }}>
         {/* Signing in or out flips these guards and Expo Router moves to the first screen allowed. */}
         <Stack.Protected guard={!!session}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="vehicle/[id]" />
           <Stack.Screen name="vehicle/new" options={{ presentation: "modal" }} />
+          <Stack.Screen
+            name="vehicle/options"
+            options={{ presentation: "formSheet", sheetAllowedDetents: "fitToContents", sheetGrabberVisible: true }}
+          />
+          <Stack.Screen name="vehicle/odometer" options={{ presentation: "modal" }} />
           <Stack.Screen name="renewal/edit" options={{ presentation: "modal" }} />
           <Stack.Screen name="record/edit" options={{ presentation: "modal" }} />
           <Stack.Screen name="service/edit" options={{ presentation: "modal" }} />
@@ -66,21 +79,26 @@ export default function RootLayout() {
     JetBrainsMono_600SemiBold,
     JetBrainsMono_700Bold,
     NotoSansSinhala_400Regular,
+    NotoSansSinhala_500Medium,
+    NotoSansSinhala_600SemiBold,
+    NotoSansSinhala_700Bold,
   });
 
   if (!loaded && !error) return null;
 
   return (
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <GarageProvider>
-            <RemindersProvider>
-              <Navigator />
-            </RemindersProvider>
-          </GarageProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <LanguageProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <GarageProvider>
+              <RemindersProvider>
+                <Navigator />
+              </RemindersProvider>
+            </GarageProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }

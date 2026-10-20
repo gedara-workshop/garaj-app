@@ -9,6 +9,7 @@ import { Txt } from "@/components/Txt";
 import { authErrorMessage } from "@/data/authErrors";
 import { formatPhone } from "@/data/format";
 import { supabase } from "@/data/supabase";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const CODE_LENGTH = 6;
@@ -17,6 +18,7 @@ const RESEND_AFTER = 60;
 
 export default function CodeSignIn() {
   const { colors } = useTheme();
+  const { t } = useT();
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -60,7 +62,7 @@ export default function CodeSignIn() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 px-6 pb-8 pt-2">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t("common.back")}
           onPress={() => router.back()}
           className="-ml-2.5 h-11 w-11 items-center justify-center rounded-full"
         >
@@ -68,10 +70,10 @@ export default function CodeSignIn() {
         </Pressable>
 
         <Txt variant="display" accessibilityRole="header" className="mt-6 text-[28px] leading-[34px]">
-          Enter the code
+          {t("signIn.codeTitle")}
         </Txt>
         <Txt className="mt-2 text-ink-muted">
-          We sent a 6-digit code by SMS to{" "}
+          {t("signIn.codeSentTo")}{" "}
           <Txt variant="number" className="text-[15px]">
             {formatPhone(phone)}
           </Txt>
@@ -81,7 +83,7 @@ export default function CodeSignIn() {
           onPress={() => router.back()}
           className="mt-1 min-h-[44px] justify-center self-start"
         >
-          <Txt className="font-inter-semibold text-[14px] text-brand">Change number</Txt>
+          <Txt className="font-inter-semibold text-[14px] text-brand">{t("signIn.changeNumber")}</Txt>
         </Pressable>
 
         {/* One real input under six boxes, so paste and SMS autofill fill the whole code at once. */}
@@ -111,7 +113,7 @@ export default function CodeSignIn() {
             maxLength={CODE_LENGTH}
             editable={!busy}
             caretHidden
-            accessibilityLabel="6-digit code"
+            accessibilityLabel={t("signIn.codeLabel")}
             className="absolute inset-0 text-transparent opacity-0"
           />
         </View>
@@ -124,20 +126,20 @@ export default function CodeSignIn() {
 
         {wait > 0 ? (
           <Txt className="mt-4 text-[14px] text-ink-muted">
-            Didn't get it? Resend in{" "}
+            {t("signIn.resendIn")}{" "}
             <Txt variant="number" className="text-ink">
               0:{String(wait).padStart(2, "0")}
             </Txt>
           </Txt>
         ) : (
           <Pressable accessibilityRole="button" onPress={resend} className="mt-2 min-h-[44px] justify-center self-start">
-            <Txt className="font-inter-semibold text-[14px] text-brand">Send a new code</Txt>
+            <Txt className="font-inter-semibold text-[14px] text-brand">{t("signIn.sendNew")}</Txt>
           </Pressable>
         )}
 
         <View className="mt-auto pt-6">
           <Button
-            title={busy ? "Checking..." : "Verify"}
+            title={busy ? t("signIn.checking") : t("signIn.verify")}
             onPress={() => verify(code)}
             disabled={busy || code.length !== CODE_LENGTH}
           />

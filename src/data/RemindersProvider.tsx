@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppState, Linking, Platform } from "react-native";
 import { vehicleName } from "@/components/VehicleCard";
+import { translate, useT } from "@/i18n";
 import { formatDate } from "./format";
 import { useGarage } from "./GarageProvider";
 import {
@@ -74,8 +75,8 @@ function content(r: PlannedReminder): Notifications.NotificationContentInput {
   return {
     title:
       r.daysBefore === 0
-        ? `${what} ${r.renewal.kind === "insurance" ? "renews" : "expires"} today`
-        : `${what} due in ${r.daysBefore} days`,
+        ? translate(r.renewal.kind === "insurance" ? "notify.renewsToday" : "notify.expiresToday", { what })
+        : translate("notify.dueIn", { what, n: r.daysBefore }),
     body: `${vehicleName(r.vehicle)} (${plate}), ${formatDate(r.renewal.expiresOn)}`,
     data: { vehicleId: r.vehicle.id },
   };
@@ -102,6 +103,8 @@ const RemindersContext = createContext<Reminders | null>(null);
 
 export function RemindersProvider({ children }: { children: ReactNode }) {
   const { vehicles, renewals, isLoading } = useGarage();
+  // Scheduled text is written in the current language, so a language change rewrites it.
+  const { lang } = useT();
   const [settings, setSettingsState] = useState(() => load(SETTINGS_KEY, defaultReminderSettings));
   const [promptDismissed, setPromptDismissed] = useState(() => load(DISMISSED_KEY, { value: false }).value);
   const [permission, setPermission] = useState<Permission>("undetermined");
@@ -134,7 +137,7 @@ export function RemindersProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!remindersSupported || isLoading || permission !== "granted") return;
     reschedule(planReminders(vehicles, renewals, settings)).catch((e) => console.warn("Reminders not scheduled", e));
-  }, [vehicles, renewals, settings, permission, isLoading]);
+  }, [vehicles, renewals, settings, permission, isLoading, lang]);
 
   const setSettings = useCallback((s: ReminderSettings) => {
     setSettingsState(s);

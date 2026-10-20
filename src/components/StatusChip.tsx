@@ -1,7 +1,8 @@
 import { Check, CircleAlert, Clock } from "lucide-react-native";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import type { Status } from "@/data/types";
 import { useTheme } from "@/theme/ThemeProvider";
+import { Txt } from "./Txt";
 
 const styles: Record<Status, { box: string; text: string; color: string }> = {
   ok: { box: "bg-ok-tint", text: "text-ok", color: "ok" },
@@ -19,7 +20,7 @@ export function StatusChip({ status, label }: { status: Status; label: string })
   return (
     <View className={`h-[26px] flex-row items-center gap-1 self-start rounded-full px-2.5 ${s.box}`}>
       <Icon size={14} color={colors[s.color]} strokeWidth={2.4} />
-      <Text className={`font-inter-semibold text-[13px] ${s.text}`}>{label}</Text>
+      <Txt className={`font-inter-semibold text-[13px] leading-[18px] ${s.text}`}>{label}</Txt>
     </View>
   );
 }

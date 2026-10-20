@@ -25,6 +25,9 @@ module.exports = {
         mono: ["JetBrainsMono_600SemiBold"],
         "mono-bold": ["JetBrainsMono_700Bold"],
         si: ["NotoSansSinhala_400Regular"],
+        "si-medium": ["NotoSansSinhala_500Medium"],
+        "si-semibold": ["NotoSansSinhala_600SemiBold"],
+        "si-bold": ["NotoSansSinhala_700Bold"],
       },
       borderRadius: {
         sm: "8px",

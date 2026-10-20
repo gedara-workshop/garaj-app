@@ -1,3 +1,4 @@
+import { translate } from "@/i18n";
 import type { FuelType, LogRecord, Renewal, Vehicle, RenewalKind, ServiceItem, Status, VehicleType } from "./types";
 
 // Thresholds from the design system: "soon" within 30 days or 1,000 km / 70% of an interval.
@@ -66,50 +67,51 @@ type Suggestion = { name: string; intervalKm: number };
 
 /**
  * Common km-based service items to offer when a vehicle has none, four at most (one card's worth).
- * Typical Sri Lankan garage intervals; the owner can change any of them.
+ * Typical Sri Lankan garage intervals; the owner can change any of them. Names are in the current
+ * language because they are saved as the item's name.
  */
 export function suggestedServiceItems(type: VehicleType, fuel?: FuelType): Suggestion[] {
   if (type === "motorbike") {
     return fuel === "electric"
       ? [
-          { name: "Chain and sprocket", intervalKm: 15000 },
-          { name: "Brake pads", intervalKm: 10000 },
+          { name: translate("serviceItem.chainSprocket"), intervalKm: 15000 },
+          { name: translate("serviceItem.brakePads"), intervalKm: 10000 },
         ]
       : [
-          { name: "Engine oil", intervalKm: 2000 },
-          { name: "Chain and sprocket", intervalKm: 15000 },
-          { name: "Air filter", intervalKm: 10000 },
-          { name: "Spark plug", intervalKm: 10000 },
+          { name: translate("serviceItem.engineOil"), intervalKm: 2000 },
+          { name: translate("serviceItem.chainSprocket"), intervalKm: 15000 },
+          { name: translate("serviceItem.airFilter"), intervalKm: 10000 },
+          { name: translate("serviceItem.sparkPlug"), intervalKm: 10000 },
         ];
   }
   if (type === "three-wheeler") {
     return [
-      { name: "Engine oil", intervalKm: 3000 },
-      { name: "Air filter", intervalKm: 10000 },
-      { name: "Spark plug", intervalKm: 10000 },
-      { name: "Brake shoes", intervalKm: 15000 },
+      { name: translate("serviceItem.engineOil"), intervalKm: 3000 },
+      { name: translate("serviceItem.airFilter"), intervalKm: 10000 },
+      { name: translate("serviceItem.sparkPlug"), intervalKm: 10000 },
+      { name: translate("serviceItem.brakeShoes"), intervalKm: 15000 },
     ];
   }
   if (type === "lorry") {
     return [
-      { name: "Oil and filter", intervalKm: 10000 },
-      { name: "Fuel filter", intervalKm: 20000 },
-      { name: "Air filter", intervalKm: 20000 },
-      { name: "Brake shoes", intervalKm: 30000 },
+      { name: translate("serviceItem.oilFilter"), intervalKm: 10000 },
+      { name: translate("serviceItem.fuelFilter"), intervalKm: 20000 },
+      { name: translate("serviceItem.airFilter"), intervalKm: 20000 },
+      { name: translate("serviceItem.brakeShoes"), intervalKm: 30000 },
     ];
   }
   if (fuel === "electric") {
     return [
-      { name: "Tyre rotation", intervalKm: 10000 },
-      { name: "Cabin air filter", intervalKm: 20000 },
-      { name: "Brake pads", intervalKm: 40000 },
+      { name: translate("serviceItem.tyreRotation"), intervalKm: 10000 },
+      { name: translate("serviceItem.cabinFilter"), intervalKm: 20000 },
+      { name: translate("serviceItem.brakePads"), intervalKm: 40000 },
     ];
   }
   return [
-    { name: "Oil and filter", intervalKm: 5000 },
-    fuel === "diesel" ? { name: "Fuel filter", intervalKm: 20000 } : { name: "Spark plugs", intervalKm: 40000 },
-    { name: "Air filter", intervalKm: 20000 },
-    { name: "Brake pads", intervalKm: 30000 },
+    { name: translate("serviceItem.oilFilter"), intervalKm: 5000 },
+    fuel === "diesel" ? { name: translate("serviceItem.fuelFilter"), intervalKm: 20000 } : { name: translate("serviceItem.sparkPlugs"), intervalKm: 40000 },
+    { name: translate("serviceItem.airFilter"), intervalKm: 20000 },
+    { name: translate("serviceItem.brakePads"), intervalKm: 30000 },
   ];
 }
 
@@ -146,11 +148,20 @@ export function planReminders(
   return plan.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, MAX_REMINDERS);
 }
 
+/** In the current language; read it when rendering, not at import time. */
 export const renewalLabel: Record<RenewalKind, string> = {
-  revenue_license: "Revenue license",
-  insurance: "Insurance",
-  emission_test: "Emission test",
-  driving_license: "Driving license",
+  get revenue_license() {
+    return translate("renewal.revenue_license");
+  },
+  get insurance() {
+    return translate("renewal.insurance");
+  },
+  get emission_test() {
+    return translate("renewal.emission_test");
+  },
+  get driving_license() {
+    return translate("renewal.driving_license");
+  },
 };
 
 const statusRank: Record<Status, number> = { due: 0, soon: 1, ok: 2 };

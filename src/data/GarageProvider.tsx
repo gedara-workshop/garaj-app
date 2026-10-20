@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
-import { Alert } from "react-native";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Alert, AppState } from "react-native";
 import { useAuth } from "./AuthProvider";
 import { readBill as readBillPhoto, type BillDraft, type ReadBill } from "./bill";
-import { signPhotoPaths, uploadVehiclePhoto } from "./photos";
+import { removeVehiclePhoto, signPhotoPaths, uploadVehiclePhoto } from "./photos";
+import { translate } from "@/i18n";
+import { todayIso } from "./format";
+import { isNetworkError, loadOutbox, newId, saveOutbox, type QueuedRecord } from "./outbox";
 import { renewedExpiry } from "./rules";
 import { supabase } from "./supabase";
 import type { FuelType, LogRecord, RecordKind, Renewal, RenewalKind, ServiceItem, Vehicle, VehicleType } from "./types";
@@ -24,6 +27,13 @@ type Garage = {
     renewals?: Omit<Renewal, "id" | "vehicleId">[],
     photoUri?: string | null
   ) => Promise<Vehicle>;
+  /** Saves edited details, and a new photo when one was picked (the old one is removed). */
+  updateVehicle: (id: string, v: Omit<Vehicle, "id" | "photo" | "photoPath">, photoUri?: string | null) => Promise<void>;
+  setOdometer: (id: string, km: number) => Promise<void>;
+  /** Sold vehicles keep their history in the database but leave every list and stop reminders. */
+  markSold: (id: string) => Promise<void>;
+  /** Deletes the vehicle with its renewals, service items and history. */
+  deleteVehicle: (id: string) => Promise<void>;
   markRenewed: (renewalId: string) => void;
   /** Adds a renewal, or updates it when it has an id. */
   saveRenewal: (r: Omit<Renewal, "id"> & { id?: string }) => Promise<void>;
@@ -36,7 +46,9 @@ type Garage = {
   saveRecord: (
     r: Omit<LogRecord, "id"> & { id?: string },
     options?: { servicedItemIds?: string[]; billPath?: string; extracted?: ReadBill }
-  ) => Promise<void>;
+  ) => Promise<"saved" | "queued">;
+  /** New entries saved on the phone while offline, waiting to upload. */
+  pendingCount: number;
   /** Snap a bill: uploads the photo and has it read into a form draft. Throws UnreadableBill. */
   readBill: (photoUri: string) => Promise<BillDraft>;
   deleteRecord: (recordId: string) => Promise<void>;
@@ -90,6 +102,7 @@ const toVehicle = (r: VehicleRow, photoUrl?: string): Vehicle => ({
   odometerUpdatedAt: r.odometer_updated_at,
   // cacheKey is the object path, so a fresh signed link doesn't download the same photo again.
   photo: r.photo_path && photoUrl ? { uri: photoUrl, cacheKey: r.photo_path } : null,
+  photoPath: r.photo_path ?? undefined,
 });
 
 const toRenewal = (r: RenewalRow): Renewal => ({
@@ -152,6 +165,53 @@ async function fetchGarage(userId: string): Promise<GarageData> {
     serviceItems: (serviceItems.data as ServiceItemRow[]).map(toServiceItem),
     records: (records.data as RecordRow[]).map(toRecord),
   };
+}
+
+/**
+ * Writes one log entry plus its follow-ups. New entries carry an id made on the phone, so a
+ * retry after a lost reply finds the row already there instead of adding it twice.
+ */
+async function writeRecord(
+  garageId: string,
+  userId: string,
+  r: Omit<LogRecord, "id"> & { id: string },
+  servicedItemIds: string[],
+  billPath: string | undefined,
+  extracted: ReadBill | undefined,
+  isEdit: boolean
+) {
+  const fields = {
+    kind: r.kind,
+    title: r.title,
+    place: r.place ?? null,
+    odometer_km: r.odometerKm ?? null,
+    happened_on: r.date,
+    amount_lkr: r.amountLkr,
+    litres: r.litres ?? null,
+    // Only set when there is a bill, so editing an entry later keeps its bill.
+    ...(billPath ? { bill_path: billPath, extracted } : {}),
+  };
+  const { error } = isEdit
+    ? await supabase.from("records").update(fields).eq("id", r.id)
+    : await supabase
+        .from("records")
+        .insert({ ...fields, id: r.id, garage_id: garageId, vehicle_id: r.vehicleId, created_by: userId });
+  if (error && error.code !== "23505") throw error; // 23505: already saved by an earlier try
+
+  // The entry is what matters. These follow-ups can fail for a logger (no rights to change
+  // vehicles or service items) without losing it. Both only ever move forward, checked by the
+  // database, so an entry sent late can't undo a newer reading.
+  const km = r.odometerKm;
+  if (km) {
+    await supabase
+      .from("vehicles")
+      .update({ odometer_km: km, odometer_updated_at: r.date })
+      .eq("id", r.vehicleId)
+      .lt("odometer_km", km);
+  }
+  if (km && servicedItemIds.length) {
+    await supabase.from("service_items").update({ last_done_km: km }).in("id", servicedItemIds).lte("last_done_km", km);
+  }
 }
 
 const GarageContext = createContext<Garage | null>(null);
@@ -222,7 +282,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
           const { error } = await supabase.from("vehicles").update({ photo_path: path }).eq("id", vehicle.id);
           if (error) throw error;
         } catch {
-          Alert.alert("Saved without the photo", "The photo didn't upload. Check your connection and add it again later.");
+          Alert.alert(translate("alert.noPhotoTitle"), translate("alert.noPhotoBody"));
         }
       }
 
@@ -250,7 +310,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     },
     onError: (_error, _vars, context) => {
       queryClient.setQueryData(queryKey, context?.previous);
-      Alert.alert("Couldn't save", "Check your connection and try again.");
+      Alert.alert(translate("alert.couldntSaveTitle"), translate("state.checkConnection"));
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   });
@@ -286,43 +346,73 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     [queryClient, queryKey]
   );
 
+  // Entries waiting for a connection, for the signed-in person only.
+  const [outbox, setOutbox] = useState(loadOutbox);
+  const pending = useMemo(() => outbox.filter((q) => q.userId === userId), [outbox, userId]);
+  const updateOutbox = useCallback((change: (list: QueuedRecord[]) => QueuedRecord[]) => {
+    setOutbox((list) => {
+      const next = change(list);
+      saveOutbox(next);
+      return next;
+    });
+  }, []);
+
   const saveRecord = useCallback<Garage["saveRecord"]>(
     async (r, { servicedItemIds = [], billPath, extracted } = {}) => {
       const data = query.data;
       if (!data || !userId) throw new Error("Your garage hasn't loaded yet.");
-      const fields = {
-        kind: r.kind,
-        title: r.title,
-        place: r.place ?? null,
-        odometer_km: r.odometerKm ?? null,
-        happened_on: r.date,
-        amount_lkr: r.amountLkr,
-        litres: r.litres ?? null,
-        // Only set when there is a bill, so editing an entry later keeps its bill.
-        ...(billPath ? { bill_path: billPath, extracted } : {}),
-      };
-      const { error } = r.id
-        ? await supabase.from("records").update(fields).eq("id", r.id)
-        : await supabase
-            .from("records")
-            .insert({ ...fields, garage_id: data.garageId, vehicle_id: r.vehicleId, created_by: userId });
-      if (error) throw error;
-
-      // The entry is what matters. These follow-ups can fail for a logger (no rights to change
-      // vehicles or service items) without losing it.
-      const km = r.odometerKm;
-      const vehicle = data.vehicles.find((v) => v.id === r.vehicleId);
-      if (km && vehicle && km > vehicle.odometerKm) {
-        await supabase.from("vehicles").update({ odometer_km: km, odometer_updated_at: r.date }).eq("id", vehicle.id);
+      if (r.id) {
+        await writeRecord(data.garageId, userId, { ...r, id: r.id }, servicedItemIds, billPath, extracted, true);
+        await queryClient.invalidateQueries({ queryKey });
+        return "saved";
       }
-      if (km && servicedItemIds.length) {
-        // Only move bars forward: an old bill shouldn't undo a newer service.
-        await supabase.from("service_items").update({ last_done_km: km }).in("id", servicedItemIds).lte("last_done_km", km);
+      const entry: QueuedRecord = { userId, record: { ...r, id: newId() }, servicedItemIds, billPath, extracted };
+      try {
+        await writeRecord(data.garageId, userId, entry.record, servicedItemIds, billPath, extracted, false);
+      } catch (e) {
+        if (!isNetworkError(e)) throw e;
+        updateOutbox((list) => [...list, entry]);
+        return "queued";
       }
       await queryClient.invalidateQueries({ queryKey });
+      return "saved";
     },
-    [query.data, userId, queryClient, queryKey]
+    [query.data, userId, queryClient, queryKey, updateOutbox]
   );
+
+  // Send waiting entries when the garage loads, when the app comes back, and every 30 seconds
+  // while any are waiting. Stops at the first network error; anything Supabase rejects stays
+  // queued too, so nothing typed in is ever silently dropped.
+  const flushing = useRef(false);
+  const flush = useCallback(async () => {
+    const garageId = query.data?.garageId;
+    if (!garageId || !userId || flushing.current || pending.length === 0) return;
+    flushing.current = true;
+    let sent = 0;
+    for (const q of pending) {
+      try {
+        await writeRecord(garageId, userId, q.record, q.servicedItemIds, q.billPath, q.extracted, false);
+        updateOutbox((list) => list.filter((x) => x.record.id !== q.record.id));
+        sent++;
+      } catch (e) {
+        if (isNetworkError(e)) break;
+        console.warn("Queued entry not accepted", e);
+      }
+    }
+    flushing.current = false;
+    if (sent) await queryClient.invalidateQueries({ queryKey });
+  }, [query.data?.garageId, userId, pending, updateOutbox, queryClient, queryKey]);
+
+  useEffect(() => {
+    if (pending.length === 0) return;
+    flush();
+    const timer = setInterval(flush, 30_000);
+    const sub = AppState.addEventListener("change", (state) => state === "active" && flush());
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
+  }, [pending.length, flush]);
 
   const deleteRecord = useCallback<Garage["deleteRecord"]>(
     async (recordId) => {
@@ -364,6 +454,59 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     [queryClient, queryKey]
   );
 
+  // Vehicle changes share one shape: write, then refetch so every screen sees it.
+  const writeVehicle = useCallback(
+    async (id: string, fields: Record<string, unknown>) => {
+      const { error } = await supabase.from("vehicles").update(fields).eq("id", id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [queryClient, queryKey]
+  );
+
+  const updateVehicle = useCallback<Garage["updateVehicle"]>(
+    async (id, v, photoUri) => {
+      const garageId = query.data?.garageId;
+      if (!garageId) throw new Error("Your garage hasn't loaded yet.");
+      const old = query.data?.vehicles.find((x) => x.id === id);
+      const photoPath = photoUri ? await uploadVehiclePhoto(garageId, id, photoUri) : undefined;
+      await writeVehicle(id, {
+        type: v.type,
+        make: v.make,
+        model: v.model,
+        year: v.year ?? null,
+        fuel: v.fuel ?? null,
+        color: v.color ?? null,
+        province: v.province ?? null,
+        plate: v.plate,
+        odometer_km: v.odometerKm,
+        odometer_updated_at: v.odometerUpdatedAt,
+        ...(photoPath ? { photo_path: photoPath } : {}),
+      });
+      if (photoPath) await removeVehiclePhoto(old?.photoPath);
+    },
+    [query.data, writeVehicle]
+  );
+
+  const setOdometer = useCallback<Garage["setOdometer"]>(
+    (id, km) => writeVehicle(id, { odometer_km: km, odometer_updated_at: todayIso() }),
+    [writeVehicle]
+  );
+
+  const markSold = useCallback<Garage["markSold"]>((id) => writeVehicle(id, { sold_at: todayIso() }), [writeVehicle]);
+
+  const deleteVehicle = useCallback<Garage["deleteVehicle"]>(
+    async (id) => {
+      const old = query.data?.vehicles.find((x) => x.id === id);
+      // Renewals, service items and records go with it (on delete cascade).
+      const { error } = await supabase.from("vehicles").delete().eq("id", id);
+      if (error) throw error;
+      await removeVehiclePhoto(old?.photoPath);
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [query.data, queryClient, queryKey]
+  );
+
   const readBill = useCallback<Garage["readBill"]>(
     async (photoUri) => {
       const garageId = query.data?.garageId;
@@ -378,11 +521,22 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       vehicles: query.data?.vehicles ?? [],
       renewals: query.data?.renewals ?? [],
       serviceItems: query.data?.serviceItems ?? [],
-      records: query.data?.records ?? [],
+      // Waiting entries show in history straight away, marked as pending.
+      records: [
+        ...pending
+          .filter((q) => !query.data?.records.some((r) => r.id === q.record.id))
+          .map((q) => ({ ...q.record, pending: true })),
+        ...(query.data?.records ?? []),
+      ],
+      pendingCount: pending.length,
       isLoading: query.isPending && !!userId,
       error: query.error,
       refetch: () => void query.refetch(),
       addVehicle,
+      updateVehicle,
+      setOdometer,
+      markSold,
+      deleteVehicle,
       markRenewed,
       saveRenewal,
       deleteRenewal,
@@ -394,11 +548,16 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     }),
     [
       query.data,
+      pending,
       query.isPending,
       query.error,
       query.refetch,
       userId,
       addVehicle,
+      updateVehicle,
+      setOdometer,
+      markSold,
+      deleteVehicle,
       markRenewed,
       saveRenewal,
       deleteRenewal,

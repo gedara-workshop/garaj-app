@@ -8,6 +8,7 @@ import { Txt } from "@/components/Txt";
 import { useGarage } from "@/data/GarageProvider";
 import { useReminders } from "@/data/RemindersProvider";
 import { sortRenewals } from "@/data/rules";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 /** Turn on reminders: explains why first, then shows the system prompt. */
@@ -15,16 +16,18 @@ export default function TurnOnReminders() {
   const { vehicles, renewals } = useGarage();
   const { settings, turnOn, dismissPrompt } = useReminders();
   const { colors } = useTheme();
+  const { t } = useT();
   const next = sortRenewals(renewals)[0];
 
   const close = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
   const when: string[] = [
-    `${settings.leadDays} days before`,
-    ...(settings.weekBefore && settings.leadDays !== 7 ? ["again 7 days before"] : []),
-    ...(settings.onTheDay ? ["on the day"] : []),
+    t("reminders.daysBefore", { n: settings.leadDays }),
+    ...(settings.weekBefore && settings.leadDays !== 7 ? [t("reminders.weekBefore")] : []),
+    ...(settings.onTheDay ? [t("reminders.onTheDay")] : []),
   ];
-  const whenText = when.length > 1 ? `${when.slice(0, -1).join(", ")} and ${when[when.length - 1]}` : when[0];
+  const whenText =
+    when.length > 1 ? `${when.slice(0, -1).join(", ")} ${t("reminders.and")} ${when[when.length - 1]}` : when[0];
 
   return (
     <SafeAreaView className="flex-1 justify-between bg-surface-100 px-4 pb-4">
@@ -33,10 +36,9 @@ export default function TurnOnReminders() {
           <Bell size={30} color={colors.brand} />
         </View>
         <View className="gap-2">
-          <Txt variant="display">Never miss a renewal</Txt>
+          <Txt variant="display">{t("welcome.renewalTitle")}</Txt>
           <Txt className="text-ink-muted">
-            When a revenue license, insurance or emission test is coming up, Garaj reminds you {whenText}. Nothing else, no
-            ads.
+            {t("reminders.body", { when: whenText })}
           </Txt>
         </View>
         {next ? <RenewalTicket renewal={next} vehicle={vehicles.find((v) => v.id === next.vehicleId)} /> : null}
@@ -44,7 +46,7 @@ export default function TurnOnReminders() {
 
       <View className="gap-2">
         <Button
-          title="Turn on reminders"
+          title={t("reminders.turnOn")}
           icon={Bell}
           onPress={async () => {
             await turnOn();
@@ -52,7 +54,7 @@ export default function TurnOnReminders() {
           }}
         />
         <Button
-          title="Not now"
+          title={t("reminders.notNow")}
           kind="ghost"
           onPress={() => {
             dismissPrompt();
@@ -60,7 +62,7 @@ export default function TurnOnReminders() {
           }}
         />
         <Txt variant="caption" className="text-center">
-          You can change this any time in Me.
+          {t("reminders.changeLater")}
         </Txt>
       </View>
     </SafeAreaView>

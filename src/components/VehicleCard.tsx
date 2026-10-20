@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import { Pressable, View } from "react-native";
-import { formatNumber, formatShortLkr, plural } from "@/data/format";
+import { formatNumber, formatShortLkr } from "@/data/format";
+import { translate, translatePlural } from "@/i18n";
 import { daysUntil, renewalLabel, renewalStatus, serviceProgress, sortRenewals } from "@/data/rules";
 import type { LogRecord, Renewal, ServiceItem, Vehicle } from "@/data/types";
 import { Plate } from "./Plate";
@@ -77,22 +78,22 @@ export function VehicleCard({
             <Txt>{renewalLabel[next.kind]}</Txt>
             <StatusChip
               status={nextStatus}
-              label={nextStatus === "due" ? `${plural(-nextDays, "day")} over` : plural(nextDays, "day")}
+              label={nextStatus === "due" ? translatePlural("status.daysOver", -nextDays) : translatePlural("status.days", nextDays)}
             />
           </>
         ) : (
-          <Txt className="text-ink-muted">No renewals added yet</Txt>
+          <Txt className="text-ink-muted">{translate("card.noRenewals")}</Txt>
         )}
       </View>
 
       <View className="flex-row">
-        <Stat value={formatNumber(vehicle.odometerKm)} label="km on clock" />
+        <Stat value={formatNumber(vehicle.odometerKm)} label={translate("card.kmOnClock")} />
         <Stat
           value={nextService === undefined ? "-" : formatNumber(Math.max(0, nextService))}
-          label={nextService !== undefined && nextService < 0 ? "km overdue" : "km to service"}
+          label={translate(nextService !== undefined && nextService < 0 ? "card.kmOverdue" : "card.kmToService")}
           divider
         />
-        <Stat value={formatShortLkr(spentThisYear)} label="LKR this year" divider />
+        <Stat value={formatShortLkr(spentThisYear)} label={translate("card.lkrThisYear")} divider />
       </View>
     </Pressable>
   );

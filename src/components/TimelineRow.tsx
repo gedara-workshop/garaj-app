@@ -2,6 +2,7 @@ import { CircleDot, Fuel, Receipt, Wrench } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 import { formatDate, formatNumber } from "@/data/format";
 import type { LogRecord } from "@/data/types";
+import { translate } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Txt } from "./Txt";
 
@@ -13,6 +14,7 @@ export function TimelineRow({ record, last = false, onPress }: { record: LogReco
   const Icon = icons[record.kind];
   const isService = record.kind === "service" || record.kind === "repair";
   const meta = [
+    record.pending ? translate("timeline.pending") : undefined,
     record.place,
     record.odometerKm ? `${formatNumber(record.odometerKm)} km` : undefined,
     formatDate(record.date, false),
@@ -25,7 +27,7 @@ export function TimelineRow({ record, last = false, onPress }: { record: LogReco
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? "button" : undefined}
-      accessibilityHint={onPress ? "Edit this entry" : undefined}
+      accessibilityHint={onPress ? translate("timeline.editHint") : undefined}
       className={`min-h-[56px] flex-row items-center gap-3 py-2 active:opacity-70 ${last ? "" : "border-b border-line"}`}
     >
       <View className={`h-9 w-9 items-center justify-center rounded-sm ${isService ? "bg-brand-tint" : "bg-surface-300"}`}>

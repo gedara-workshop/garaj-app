@@ -8,17 +8,19 @@ import { Txt } from "@/components/Txt";
 import { authErrorMessage } from "@/data/authErrors";
 import { toLkMobile } from "@/data/format";
 import { supabase } from "@/data/supabase";
+import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export default function PhoneSignIn() {
   const { colors } = useTheme();
+  const { t } = useT();
   const [number, setNumber] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
 
   async function sendCode() {
     const phone = toLkMobile(number);
-    if (!phone) return setError("Enter a mobile number, like 077 123 4567.");
+    if (!phone) return setError(t("signIn.phoneInvalid"));
 
     setError("");
     setSending(true);
@@ -34,7 +36,7 @@ export default function PhoneSignIn() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 px-6 pb-8 pt-2">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t("common.back")}
           onPress={() => router.back()}
           className="-ml-2.5 h-11 w-11 items-center justify-center rounded-full"
         >
@@ -42,10 +44,10 @@ export default function PhoneSignIn() {
         </Pressable>
 
         <Txt variant="display" accessibilityRole="header" className="mt-6 text-[28px] leading-[34px]">
-          Your phone number
+          {t("signIn.phoneTitle")}
         </Txt>
         <Txt className="mt-2 text-ink-muted">
-          We'll text you a 6-digit code. New to Garaj? The same code sets up your account.
+          {t("signIn.phoneBody")}
         </Txt>
 
         <View className="mt-7 flex-row gap-2">
@@ -68,7 +70,7 @@ export default function PhoneSignIn() {
             autoComplete="tel"
             autoFocus
             maxLength={16}
-            accessibilityLabel="Mobile number"
+            accessibilityLabel={t("signIn.mobileNumber")}
             className="h-14 flex-1 rounded-md border border-line bg-surface-200 px-4 font-mono text-[18px] text-ink"
           />
         </View>
@@ -80,7 +82,7 @@ export default function PhoneSignIn() {
         ) : null}
 
         <View className="mt-auto pt-6">
-          <Button title={sending ? "Sending code..." : "Send code"} onPress={sendCode} disabled={sending} />
+          <Button title={sending ? t("signIn.sending") : t("signIn.send")} onPress={sendCode} disabled={sending} />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

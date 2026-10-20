@@ -5,31 +5,23 @@ import { useState } from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { Chip } from "@/components/FormField";
 import { GoogleLogo } from "@/components/GoogleLogo";
 import { Txt } from "@/components/Txt";
 import { signInWithGoogle } from "@/data/googleSignIn";
+import { languages, useT } from "@/i18n";
+import type { StringKey } from "@/i18n/en";
 import { useTheme } from "@/theme/ThemeProvider";
 
-const features: { icon: LucideIcon; title: string; body: string }[] = [
-  {
-    icon: Bell,
-    title: "Never miss a renewal",
-    body: "Revenue license, insurance and emission test, reminded before they expire.",
-  },
-  {
-    icon: Camera,
-    title: "Snap a bill, we fill it in",
-    body: "Service, fuel and repairs logged from a photo. You just check and save.",
-  },
-  {
-    icon: ChartLine,
-    title: "Know what each vehicle costs",
-    body: "Monthly spend and cost per km, for one car or the whole family's.",
-  },
+const features: { icon: LucideIcon; title: StringKey; body: StringKey }[] = [
+  { icon: Bell, title: "welcome.renewalTitle", body: "welcome.renewalBody" },
+  { icon: Camera, title: "welcome.billTitle", body: "welcome.billBody" },
+  { icon: ChartLine, title: "welcome.costTitle", body: "welcome.costBody" },
 ];
 
 export default function Welcome() {
   const { colors } = useTheme();
+  const { t, lang, setLang } = useT();
   const [googleBusy, setGoogleBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,7 +33,7 @@ export default function Welcome() {
       await signInWithGoogle();
     } catch (e) {
       console.warn("Google sign in failed", e);
-      setError("Google sign in didn't finish. Try again, or use your phone number.");
+      setError(t("welcome.googleFailed"));
     } finally {
       setGoogleBusy(false);
     }
@@ -50,14 +42,22 @@ export default function Welcome() {
   return (
     <SafeAreaView className="flex-1 bg-surface-100">
       <View className="flex-1 px-6 pb-8 pt-10">
-        <Image
-          source={require("../../assets/icon.png")}
-          accessibilityLabel="Garaj"
-          style={{ width: 56, height: 56, borderRadius: 14 }}
-        />
+        <View className="flex-row items-start justify-between">
+          <Image
+            source={require("../../assets/icon.png")}
+            accessibilityLabel="Garaj"
+            style={{ width: 56, height: 56, borderRadius: 14 }}
+          />
+          {/* Each label is in its own language, so anyone can find theirs. */}
+          <View className="flex-row gap-1.5">
+            {languages.map((l) => (
+              <Chip key={l.lang} label={l.label} selected={l.lang === lang} onPress={() => setLang(l.lang)} compact />
+            ))}
+          </View>
+        </View>
 
         <Txt variant="display" accessibilityRole="header" className="mt-8">
-          Every vehicle, every renewal, one place.
+          {t("welcome.headline")}
         </Txt>
 
         <View className="mt-8 gap-5">
@@ -67,9 +67,9 @@ export default function Welcome() {
                 <Icon size={22} color={colors.brand} />
               </View>
               <View className="flex-1">
-                <Txt className="font-inter-semibold">{title}</Txt>
+                <Txt className="font-inter-semibold">{t(title)}</Txt>
                 <Txt variant="label" className="font-inter text-ink-muted">
-                  {body}
+                  {t(body)}
                 </Txt>
               </View>
             </View>
@@ -82,9 +82,9 @@ export default function Welcome() {
               {error}
             </Txt>
           ) : null}
-          <Button title="Continue with phone number" icon={Smartphone} onPress={() => router.push("/sign-in/phone")} />
+          <Button title={t("welcome.phone")} icon={Smartphone} onPress={() => router.push("/sign-in/phone")} />
           <Button
-            title={googleBusy ? "Opening Google..." : "Continue with Google"}
+            title={googleBusy ? t("welcome.googleOpening") : t("welcome.google")}
             kind="secondary"
             leading={<GoogleLogo />}
             onPress={continueWithGoogle}
