@@ -28,6 +28,8 @@ export type Renewal = {
   kind: RenewalKind;
   provider?: string; // e.g. insurance company
   expiresOn: string; // ISO date
+  documentPath?: string; // object path in the "documents" bucket
+  document?: ImageSource | null; // signed link to the document photo
 };
 
 export type ServiceItem = {

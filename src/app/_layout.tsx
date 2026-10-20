@@ -54,6 +54,7 @@ function Navigator() {
           />
           <Stack.Screen name="vehicle/odometer" options={{ presentation: "modal" }} />
           <Stack.Screen name="renewal/edit" options={{ presentation: "modal" }} />
+          <Stack.Screen name="renewal/document" options={{ presentation: "fullScreenModal" }} />
           <Stack.Screen name="record/edit" options={{ presentation: "modal" }} />
           <Stack.Screen name="service/edit" options={{ presentation: "modal" }} />
           <Stack.Screen name="bill/snap" options={{ presentation: "modal" }} />

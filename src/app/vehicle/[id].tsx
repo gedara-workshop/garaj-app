@@ -127,6 +127,7 @@ export default function VehicleDetail() {
               renewal={r}
               onRenewed={() => markRenewed(r.id)}
               onEdit={() => router.push({ pathname: "/renewal/edit", params: { id: r.id } })}
+              onViewDocument={() => router.push({ pathname: "/renewal/document", params: { id: r.id } })}
             />
           ))
         ) : (

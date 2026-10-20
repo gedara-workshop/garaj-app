@@ -1,5 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { X } from "lucide-react-native";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { Camera, ImageIcon, X } from "lucide-react-native";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -33,6 +35,25 @@ export default function EditRenewal() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // A newly picked document photo, or a request to remove the saved one.
+  const [documentUri, setDocumentUri] = useState<string | null>(null);
+  const [removeDocument, setRemoveDocument] = useState(false);
+  const shownDocument = documentUri ? { uri: documentUri } : removeDocument ? null : existing?.document;
+
+  async function pickDocument(useCamera: boolean) {
+    if (useCamera && Platform.OS !== "web") {
+      const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+      if (!granted) return setError(t("bill.cameraOff"));
+    }
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 0.8 };
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync(options)
+      : await ImagePicker.launchImageLibraryAsync(options);
+    if (!result.canceled) {
+      setDocumentUri(result.assets[0].uri);
+      setRemoveDocument(false);
+    }
+  }
 
   const close = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
@@ -51,13 +72,16 @@ export default function EditRenewal() {
     setError("");
     setBusy(true);
     try {
-      await saveRenewal({
-        id: existing?.id,
-        vehicleId: vehicle!.id,
-        kind,
-        provider: kind === "insurance" ? provider.trim() || undefined : undefined,
-        expiresOn,
-      });
+      await saveRenewal(
+        {
+          id: existing?.id,
+          vehicleId: vehicle!.id,
+          kind,
+          provider: kind === "insurance" ? provider.trim() || undefined : undefined,
+          expiresOn,
+        },
+        { documentUri: documentUri ?? undefined, removeDocument }
+      );
       close();
     } catch {
       setError(t("common.couldntSave"));
@@ -130,6 +154,38 @@ export default function EditRenewal() {
               />
             </View>
             <Txt variant="caption">{t("renewalForm.reminderNote")}</Txt>
+          </View>
+
+          <View className="gap-2">
+            <View>
+              <Txt variant="label" className="font-inter-semibold">
+                {t("document.title")}
+              </Txt>
+              <Txt variant="caption">{t("document.hint")}</Txt>
+            </View>
+            {shownDocument ? (
+              <View className="gap-2">
+                <View className="h-[180px] overflow-hidden rounded-md border border-line bg-surface-300">
+                  <Image source={shownDocument} contentFit="contain" style={{ flex: 1 }} accessibilityLabel={t("document.title")} />
+                </View>
+                <View className="flex-row gap-2">
+                  <Button title={t("document.replace")} kind="secondary" icon={Camera} onPress={() => pickDocument(true)} className="flex-1" />
+                  <Button
+                    title={t("document.remove")}
+                    kind="ghost"
+                    onPress={() => {
+                      setDocumentUri(null);
+                      setRemoveDocument(true);
+                    }}
+                  />
+                </View>
+              </View>
+            ) : (
+              <View className="flex-row gap-2">
+                <Button title={t("bill.take")} kind="secondary" icon={Camera} onPress={() => pickDocument(true)} className="flex-1" />
+                <Button title={t("document.choose")} kind="secondary" icon={ImageIcon} onPress={() => pickDocument(false)} className="flex-1" />
+              </View>
+            )}
           </View>
 
           {error ? (
