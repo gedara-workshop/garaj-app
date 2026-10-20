@@ -16,6 +16,9 @@ Garaj is a vehicle paperwork and service tracker for Sri Lanka, on Android and i
 - **Vehicle visuals:** the owner adds a photo of their own vehicle. No 3D models or AI renders. Without a photo, show a body-type icon on the teal band. A background-removed "cut-out" photo is a later idea, not MVP.
 - **Service records as legal proof:** on hold. Records are for the owner's own use, not certified history.
 - **Snap a bill:** the AI hook. Photo of a bill, AI fills in the entry, the user checks and saves. Fields the AI is unsure of are flagged amber, never silently saved.
+- **Logging:** a km reading higher than the odometer moves the odometer forward automatically; lower readings (old bills) leave it alone. Logging a service or repair can restart chosen service bars from that km, never backwards.
+- **Service items:** new vehicles get up to 4 suggested km-based items per vehicle type and fuel (`suggestedServiceItems` in `rules.ts`), picked by default, editable. "Last done" defaults to today's reading so bars count from now.
+- **Snap a bill model:** Claude Haiku 5.5 (`claude-haiku-5-5`) through the Edge Function. API key from console.anthropic.com, kept only in Edge Function secrets.
 - **Reminders:** 30 days before by default, again 7 days before, and on the day. WhatsApp reminders later.
 - **Sign in:** phone number with an SMS code, plus Google. Apple sign-in comes with the iPhone App Store launch (Apple requires it on iOS when Google is offered). Each method creates its own account for now: phone and Google are not linked, so a "link sign-in methods" option in Me is needed before launch.
 - **Launch:** build for Android and iPhone from day one. Share with iPhone testers through the web build or Expo Go. Buy the Apple Developer membership (US$99 a year) only when the demand test passes and the app is close to submission. Google Play is US$25 once; new personal accounts may need a 12-tester, 14-day closed test first.
@@ -144,7 +147,7 @@ Screens only call `useGarage()`. It loads the signed-in person's garage from Sup
 
 - **Week 1 (done):** project setup, theme, components, Home, Vehicle detail, Add vehicle, Vehicles, Costs, Me (local settings), sample data, schema.
 - **Week 2:** Supabase project (done), Supabase client (done), phone and Google sign in, replace GarageProvider with real persistence (done), photo upload (done), renewals CRUD (done).
-- **Week 3:** Snap a bill (Edge Function + review screen), fuel and service logging, cost per km.
+- **Week 3:** fuel and service logging (done), service items with suggestions (done), cost per km (done), Snap a bill (Edge Function + review screen).
 - **Week 4:** reminders and notification prompt, empty and error states, Sinhala strings, EAS builds, Play Store listing. App Store listing and Apple sign-in once the Apple membership is bought.
 
 Designed but not built yet: Welcome, Sign in (OTP), Home empty state (basic version exists), Turn on reminders, Vehicle options sheet (edit, change photo, update odometer, sold, delete), Snap a bill review, Bill could not be read / offline, Sinhala Home, dark mode variants (dark already works through tokens).
