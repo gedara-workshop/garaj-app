@@ -1,5 +1,8 @@
 import type { Session } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+import { saveOutbox } from "./outbox";
 import { supabase } from "./supabase";
 
 type Auth = {
@@ -7,6 +10,8 @@ type Auth = {
   /** True until the saved session has been read from storage, so the splash screen can wait. */
   isLoading: boolean;
   signOut: () => Promise<void>;
+  /** Deletes the account and everything only this person owns, then signs out on this phone. */
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<Auth | null>(null);
@@ -32,6 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       signOut: async () => {
         await supabase.auth.signOut();
+      },
+      deleteAccount: async () => {
+        const { error } = await supabase.functions.invoke("delete-account", { method: "POST" });
+        if (error) throw error;
+        // Nothing of theirs should stay behind on this phone either.
+        saveOutbox([]);
+        if (Platform.OS !== "web") await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
+        // The account is gone on the server, so only the local session needs clearing.
+        await supabase.auth.signOut({ scope: "local" });
       },
     }),
     [session, isLoading]
