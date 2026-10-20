@@ -119,12 +119,29 @@ export default function VehicleDetail() {
         )}
       </View>
 
-      {myService.length ? (
-        <View className="mt-6 gap-3 px-4">
-          <SectionHeader title="Service" />
-          <ServiceProgress items={myService} odometerKm={vehicle.odometerKm} />
-        </View>
-      ) : null}
+      <View className="mt-6 gap-3 px-4">
+        <SectionHeader
+          title="Service"
+          action={myService.length ? (myService.length > 4 ? `All ${myService.length}` : "Add") : undefined}
+          onAction={() => router.push({ pathname: "/service/edit", params: { vehicleId: vehicle.id } })}
+        />
+        {myService.length ? (
+          <ServiceProgress
+            items={myService}
+            odometerKm={vehicle.odometerKm}
+            onPressItem={(item) => router.push({ pathname: "/service/edit", params: { id: item.id } })}
+          />
+        ) : (
+          <View className="items-start gap-3 rounded-md border border-line bg-surface-200 p-4">
+            <Txt className="text-ink-muted">Track oil changes and other km-based services with bars that fill as you drive.</Txt>
+            <Button
+              title="Set up service tracking"
+              kind="secondary"
+              onPress={() => router.push({ pathname: "/service/edit", params: { vehicleId: vehicle.id } })}
+            />
+          </View>
+        )}
+      </View>
 
       <View className="mt-6 gap-3 px-4">
         <SectionHeader

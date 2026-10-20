@@ -33,6 +33,9 @@ type Garage = {
    */
   saveRecord: (r: Omit<LogRecord, "id"> & { id?: string }, servicedItemIds?: string[]) => Promise<void>;
   deleteRecord: (recordId: string) => Promise<void>;
+  /** Adds service items, or updates the ones that have an id. */
+  saveServiceItems: (items: (Omit<ServiceItem, "id"> & { id?: string })[]) => Promise<void>;
+  deleteServiceItem: (itemId: string) => Promise<void>;
 };
 
 type GarageData = Pick<Garage, "vehicles" | "renewals" | "serviceItems" | "records"> & { garageId: string };
@@ -321,6 +324,37 @@ export function GarageProvider({ children }: { children: ReactNode }) {
     [queryClient, queryKey]
   );
 
+  const saveServiceItems = useCallback<Garage["saveServiceItems"]>(
+    async (items) => {
+      const garageId = query.data?.garageId;
+      if (!garageId) throw new Error("Your garage hasn't loaded yet.");
+      const fields = (i: (typeof items)[number]) => ({ name: i.name, interval_km: i.intervalKm, last_done_km: i.lastDoneKm });
+      const added = items.filter((i) => !i.id);
+      const changed = items.filter((i) => i.id);
+      const results = await Promise.all([
+        added.length
+          ? supabase
+              .from("service_items")
+              .insert(added.map((i) => ({ ...fields(i), garage_id: garageId, vehicle_id: i.vehicleId })))
+          : { error: null },
+        ...changed.map((i) => supabase.from("service_items").update(fields(i)).eq("id", i.id!)),
+      ]);
+      await queryClient.invalidateQueries({ queryKey });
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw failed.error;
+    },
+    [query.data?.garageId, queryClient, queryKey]
+  );
+
+  const deleteServiceItem = useCallback<Garage["deleteServiceItem"]>(
+    async (itemId) => {
+      const { error } = await supabase.from("service_items").delete().eq("id", itemId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [queryClient, queryKey]
+  );
+
   const value = useMemo<Garage>(
     () => ({
       vehicles: query.data?.vehicles ?? [],
@@ -336,6 +370,8 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       deleteRenewal,
       saveRecord,
       deleteRecord,
+      saveServiceItems,
+      deleteServiceItem,
     }),
     [
       query.data,
@@ -349,6 +385,8 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       deleteRenewal,
       saveRecord,
       deleteRecord,
+      saveServiceItems,
+      deleteServiceItem,
     ]
   );
 

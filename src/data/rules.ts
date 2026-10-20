@@ -1,4 +1,4 @@
-import type { Renewal, RenewalKind, ServiceItem, Status } from "./types";
+import type { FuelType, Renewal, RenewalKind, ServiceItem, Status, VehicleType } from "./types";
 
 // Thresholds from the design system: "soon" within 30 days or 1,000 km / 70% of an interval.
 export const SOON_DAYS = 30;
@@ -34,6 +34,62 @@ export function renewedExpiry(r: Renewal, today = new Date()) {
   const base = new Date(Math.max(today.getTime(), new Date(r.expiresOn).getTime()));
   base.setFullYear(base.getFullYear() + 1);
   return base.toISOString().slice(0, 10);
+}
+
+/** Most used up first, so the bars that need attention are the ones shown. */
+export function sortServiceItems(items: ServiceItem[], odometerKm: number) {
+  return [...items].sort((a, b) => serviceProgress(b, odometerKm).share - serviceProgress(a, odometerKm).share);
+}
+
+type Suggestion = { name: string; intervalKm: number };
+
+/**
+ * Common km-based service items to offer when a vehicle has none, four at most (one card's worth).
+ * Typical Sri Lankan garage intervals; the owner can change any of them.
+ */
+export function suggestedServiceItems(type: VehicleType, fuel?: FuelType): Suggestion[] {
+  if (type === "motorbike") {
+    return fuel === "electric"
+      ? [
+          { name: "Chain and sprocket", intervalKm: 15000 },
+          { name: "Brake pads", intervalKm: 10000 },
+        ]
+      : [
+          { name: "Engine oil", intervalKm: 2000 },
+          { name: "Chain and sprocket", intervalKm: 15000 },
+          { name: "Air filter", intervalKm: 10000 },
+          { name: "Spark plug", intervalKm: 10000 },
+        ];
+  }
+  if (type === "three-wheeler") {
+    return [
+      { name: "Engine oil", intervalKm: 3000 },
+      { name: "Air filter", intervalKm: 10000 },
+      { name: "Spark plug", intervalKm: 10000 },
+      { name: "Brake shoes", intervalKm: 15000 },
+    ];
+  }
+  if (type === "lorry") {
+    return [
+      { name: "Oil and filter", intervalKm: 10000 },
+      { name: "Fuel filter", intervalKm: 20000 },
+      { name: "Air filter", intervalKm: 20000 },
+      { name: "Brake shoes", intervalKm: 30000 },
+    ];
+  }
+  if (fuel === "electric") {
+    return [
+      { name: "Tyre rotation", intervalKm: 10000 },
+      { name: "Cabin air filter", intervalKm: 20000 },
+      { name: "Brake pads", intervalKm: 40000 },
+    ];
+  }
+  return [
+    { name: "Oil and filter", intervalKm: 5000 },
+    fuel === "diesel" ? { name: "Fuel filter", intervalKm: 20000 } : { name: "Spark plugs", intervalKm: 40000 },
+    { name: "Air filter", intervalKm: 20000 },
+    { name: "Brake pads", intervalKm: 30000 },
+  ];
 }
 
 export const renewalLabel: Record<RenewalKind, string> = {
