@@ -14,6 +14,7 @@ import {
 } from "./photos";
 import { translate } from "@/i18n";
 import { todayIso } from "./format";
+import { loadGarage, saveGarage } from "./garageCache";
 import { isNetworkError, loadOutbox, newId, saveOutbox, type QueuedRecord } from "./outbox";
 import { renewedExpiry } from "./rules";
 import { supabase } from "./supabase";
@@ -29,6 +30,8 @@ type Garage = {
   /** True only on the first load, before there is anything to show. */
   isLoading: boolean;
   error: Error | null;
+  /** Supabase can't be reached, so this is the garage as last saved on the phone. */
+  offlineSince: number | null;
   refetch: () => void;
   addVehicle: (
     v: Omit<Vehicle, "id" | "photo">,
@@ -265,11 +268,20 @@ export function GarageProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const queryKey = useMemo(() => ["garage", userId], [userId]);
 
+  // Start from the copy saved on the phone (if any), then refresh it from Supabase. With no
+  // signal the refresh fails and the saved copy stays on screen.
   const query = useQuery({
     queryKey,
     queryFn: () => fetchGarage(userId!),
     enabled: !!userId,
+    initialData: () => (userId ? loadGarage<GarageData>(userId)?.data : undefined),
+    initialDataUpdatedAt: () => (userId ? loadGarage<GarageData>(userId)?.savedAt : undefined),
   });
+
+  // Keep the phone's copy in step with every load and save.
+  useEffect(() => {
+    if (userId && query.data) saveGarage(userId, query.data, query.dataUpdatedAt);
+  }, [userId, query.data, query.dataUpdatedAt]);
 
   // Signing out drops the cached garage so the next person never sees it.
   useEffect(() => {
@@ -598,6 +610,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       pendingCount: pending.length,
       isLoading: query.isPending && !!userId,
       error: query.error,
+      offlineSince: query.error && query.data ? query.dataUpdatedAt : null,
       refetch: () => void query.refetch(),
       addVehicle,
       updateVehicle,
@@ -618,6 +631,7 @@ export function GarageProvider({ children }: { children: ReactNode }) {
       pending,
       query.isPending,
       query.error,
+      query.dataUpdatedAt,
       query.refetch,
       userId,
       addVehicle,
