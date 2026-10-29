@@ -6,7 +6,7 @@ Part of [Gedara Workshop](https://github.com/gedara-workshop). Landing page: [ga
 
 ## Stack
 
-- Expo SDK 57, React Native 0.86, Expo Router (file-based routes in `src/app`)
+- Expo SDK 58, React Native 0.88, Expo Router (file-based routes in `src/app`)
 - NativeWind 4 (Tailwind classes) with the Garaj design tokens as CSS variables, light and dark
 - Inter, JetBrains Mono and Noto Sans Sinhala via `@expo-google-fonts`
 - Lucide icons, `expo-image`, `expo-image-picker`

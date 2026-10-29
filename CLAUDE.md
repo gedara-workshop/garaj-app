@@ -92,7 +92,7 @@ Lowercase wordmark "garaj" in round strokes, with the dot on the "j" in signal a
 
 ### Stack
 
-- Expo SDK 57, React Native 0.86, TypeScript strict, Expo Router (file routes in `src/app`)
+- Expo SDK 58, React Native 0.88, TypeScript strict, Expo Router (file routes in `src/app`)
 - NativeWind 4 + Tailwind 3. Colors are CSS variables set by `ThemeProvider` (`vars()`), so light and dark switch by swapping variables. Do not write `dark:` classes.
 - `tailwind-merge` via `cn()` for class overrides (NativeWind does not resolve conflicting classes by order).
 - Lucide icons, `expo-image`, `expo-image-picker`, `@expo-google-fonts/*`
