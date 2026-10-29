@@ -100,6 +100,7 @@ export default function Me() {
                 </View>
               ) : null}
               <Button title={t("me.signOut")} kind="secondary" icon={LogOut} onPress={signOut} />
+              <Button title={t("deleteAccount.title")} kind="ghost" onPress={() => router.push("/account/delete")} />
             </View>
           </View>
         ) : null}
