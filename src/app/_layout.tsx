@@ -7,13 +7,14 @@ import {
   NotoSansSinhala_600SemiBold,
   NotoSansSinhala_700Bold,
 } from "@expo-google-fonts/noto-sans-sinhala";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect } from "react";
+import { AppState, Platform } from "react-native";
 import { AuthProvider, useAuth } from "@/data/AuthProvider";
 import { GarageProvider } from "@/data/GarageProvider";
 import { RemindersProvider } from "@/data/RemindersProvider";
@@ -25,6 +26,14 @@ SplashScreen.preventAutoHideAsync();
 WebBrowser.maybeCompleteAuthSession();
 
 const queryClient = new QueryClient();
+// React Native has no window focus: count coming back to the app as focus, so the garage
+// refreshes (and an offline copy gets replaced) when someone returns to Garaj.
+if (Platform.OS !== "web") {
+  focusManager.setEventListener((setFocused) => {
+    const sub = AppState.addEventListener("change", (state) => setFocused(state === "active"));
+    return () => sub.remove();
+  });
+}
 
 function Navigator() {
   const { scheme, colors } = useTheme();

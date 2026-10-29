@@ -108,6 +108,7 @@ export const si: Record<StringKey, string> = {
   "home.nothingOverdue": ", කල් ඉකුත් වූ කිසිවක් නෑ",
   "home.overdue_one": ", {n}ක් කල් ඉකුත්",
   "home.overdue_other": ", {n}ක් කල් ඉකුත්",
+  "home.offline": "අන්තර්ජාලය නෑ. පෙන්නන්නේ {when} සුරැකුණු ඔබේ ගරාජ් එක. ආයෙත් උත්සාහ කරන්න ඔබන්න.",
   "home.pending_one": "සටහන් 1ක් අන්තර්ජාලය එනකම් බලාගෙන. ඉබේම උඩුගත වෙනවා.",
   "home.pending_other": "සටහන් {n}ක් අන්තර්ජාලය එනකම් බලාගෙන. ඉබේම උඩුගත වෙනවා.",
   "home.reminders": "මතක් කිරීම්",

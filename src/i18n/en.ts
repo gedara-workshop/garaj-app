@@ -106,6 +106,7 @@ export const en = {
   "home.nothingOverdue": ", nothing overdue",
   "home.overdue_one": ", {n} overdue",
   "home.overdue_other": ", {n} overdue",
+  "home.offline": "No connection. Showing your garage as saved on {when}. Tap to try again.",
   "home.pending_one": "1 entry waiting for a connection. It uploads by itself.",
   "home.pending_other": "{n} entries waiting for a connection. They upload by themselves.",
   "home.reminders": "Reminders",

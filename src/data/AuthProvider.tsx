@@ -2,6 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { clearGarage } from "./garageCache";
 import { saveOutbox } from "./outbox";
 import { supabase } from "./supabase";
 
@@ -27,7 +28,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If storage can't be read, carry on signed out rather than hang on the splash screen.
       .finally(() => setIsLoading(false));
     // Covers sign in, sign out and token refreshes from anywhere in the app.
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      // Signing out (here, on another device's "sign out everywhere", or a revoked session)
+      // removes the garage saved on this phone, so the next person never sees it.
+      if (event === "SIGNED_OUT") clearGarage();
+      setSession(next);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 

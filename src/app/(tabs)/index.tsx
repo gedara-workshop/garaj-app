@@ -11,12 +11,13 @@ import { Txt } from "@/components/Txt";
 import { VehicleCard } from "@/components/VehicleCard";
 import { useGarage } from "@/data/GarageProvider";
 import { remindersSupported, useReminders } from "@/data/RemindersProvider";
+import { formatDate, todayIso } from "@/data/format";
 import { renewalStatus, sortRenewals } from "@/data/rules";
 import { translate, useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export default function Home() {
-  const { vehicles, renewals, serviceItems, records, isLoading, error, refetch, pendingCount } = useGarage();
+  const { vehicles, renewals, serviceItems, records, isLoading, error, refetch, pendingCount, offlineSince } = useGarage();
   const { colors } = useTheme();
   const { t, tn } = useT();
   const { width } = useWindowDimensions();
@@ -72,6 +73,20 @@ export default function Home() {
             {overdue ? tn("home.overdue", overdue) : t("home.nothingOverdue")}
           </Txt>
         </View>
+
+        {offlineSince ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityHint={t("common.tryAgain")}
+            onPress={refetch}
+            className="mx-4 min-h-[48px] flex-row items-center gap-3 rounded-md border border-line bg-surface-200 px-4 py-3"
+          >
+            <CloudOff size={18} color={colors["ink-muted"]} />
+            <Txt className="flex-1 text-[14px]">
+              {t("home.offline", { when: savedWhen(offlineSince) })}
+            </Txt>
+          </Pressable>
+        ) : null}
 
         {pendingCount ? (
           <View className="mx-4 flex-row items-center gap-3 rounded-md border border-line bg-surface-200 px-4 py-3">
@@ -168,4 +183,11 @@ function EmptyHome() {
       <Button title={translate("home.addVehicle")} icon={Plus} onPress={() => router.push("/vehicle/new")} />
     </SafeAreaView>
   );
+}
+
+/** When the offline copy was saved, like "30 Oct, 08:42" (24-hour time). */
+function savedWhen(ms: number) {
+  const d = new Date(ms);
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${formatDate(todayIso(d), false)}, ${time}`;
 }
