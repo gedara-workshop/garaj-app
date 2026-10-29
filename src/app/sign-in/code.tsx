@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
-import { cn } from "@/components/cn";
+import { CODE_LENGTH, CodeInput } from "@/components/CodeInput";
 import { Txt } from "@/components/Txt";
 import { authErrorMessage } from "@/data/authErrors";
 import { formatPhone } from "@/data/format";
@@ -12,7 +12,6 @@ import { supabase } from "@/data/supabase";
 import { useT } from "@/i18n";
 import { useTheme } from "@/theme/ThemeProvider";
 
-const CODE_LENGTH = 6;
 // Supabase lets a number ask for a new code once every 60 seconds.
 const RESEND_AFTER = 60;
 
@@ -50,8 +49,7 @@ export default function CodeSignIn() {
     if (error) setError(authErrorMessage(error));
   }
 
-  function onChange(text: string) {
-    const digits = text.replace(/\D/g, "").slice(0, CODE_LENGTH);
+  function onChange(digits: string) {
     setCode(digits);
     if (error) setError("");
     verify(digits);
@@ -86,36 +84,8 @@ export default function CodeSignIn() {
           <Txt className="font-inter-semibold text-[14px] text-brand">{t("signIn.changeNumber")}</Txt>
         </Pressable>
 
-        {/* One real input under six boxes, so paste and SMS autofill fill the whole code at once. */}
         <View className="mt-5">
-          <View className="flex-row gap-2">
-            {Array.from({ length: CODE_LENGTH }, (_, i) => (
-              <View
-                key={i}
-                className={cn(
-                  "h-[60px] flex-1 items-center justify-center rounded-md border border-line bg-surface-200",
-                  i === Math.min(code.length, CODE_LENGTH - 1) && !busy && "border-2 border-brand"
-                )}
-              >
-                <Txt variant="stat" className="text-[24px] leading-[30px]">
-                  {code[i] ?? ""}
-                </Txt>
-              </View>
-            ))}
-          </View>
-          <TextInput
-            value={code}
-            onChangeText={onChange}
-            keyboardType="number-pad"
-            textContentType="oneTimeCode"
-            autoComplete="sms-otp"
-            autoFocus
-            maxLength={CODE_LENGTH}
-            editable={!busy}
-            caretHidden
-            accessibilityLabel={t("signIn.codeLabel")}
-            className="absolute inset-0 text-transparent opacity-0"
-          />
+          <CodeInput value={code} onChange={onChange} busy={busy} />
         </View>
 
         {error ? (
