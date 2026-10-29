@@ -6,7 +6,7 @@ Part of [Gedara Workshop](https://github.com/gedara-workshop). Landing page: [ga
 
 ## Stack
 
-- Expo SDK 57, React Native 0.86, Expo Router (file-based routes in `src/app`)
+- Expo SDK 58, React Native 0.88, Expo Router (file-based routes in `src/app`)
 - NativeWind 4 (Tailwind classes) with the Garaj design tokens as CSS variables, light and dark
 - Inter, JetBrains Mono and Noto Sans Sinhala via `@expo-google-fonts`
 - Lucide icons, `expo-image`, `expo-image-picker`
@@ -24,7 +24,7 @@ npx expo start
 
 Then press `i` for the iOS simulator, `a` for Android, or scan the QR code with Expo Go.
 
-To test Google sign in on a phone with Expo Go, start with `npx expo start --tunnel`. Supabase rejects redirect URLs whose host is an IP address, and Expo Go's normal LAN URL (`exp://192.168.x.x:8081`) is one, so Google sign in would land on the Site URL instead.
+To test Google sign in on a phone with Expo Go, start with `npx expo start --tunnel`. Supabase rejects redirect URLs whose host is an IP address, and Expo Go's normal LAN URL (`exp://192.168.x.x:8081`) is one, so Google sign in would land on the Site URL instead. Over the HTTPS tunnel Expo Go would use `exps://`, which Supabase rejects, so `googleSignIn.ts` asks for `exp://` in Expo Go.
 
 Sign in on the free Text.lk demo: codes aren't really delivered, but each message (with its code) shows in the Text.lk dashboard under Reports > All Messages.
 
