@@ -7,7 +7,10 @@ import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 
 const TEXTLK_URL = "https://app.text.lk/api/v3/sms/send";
 
-type HookPayload = { user: { phone: string }; sms: { otp: string } };
+type HookPayload = {
+  user: { phone?: string; phone_change?: string };
+  sms: { otp: string; sms_type?: string };
+};
 
 const fail = (status: number, message: string) =>
   new Response(JSON.stringify({ error: { http_code: status, message } }), {
@@ -30,8 +33,11 @@ Deno.serve(async (req) => {
     return fail(401, "Invalid hook signature");
   }
 
-  // Supabase sends "+94771234567"; Text.lk wants "94771234567".
-  const recipient = payload.user.phone.replace(/\D/g, "");
+  // Adding a number to an account (phone_change) texts the new number, which is still in
+  // phone_change at this point. Supabase sends "+94771234567"; Text.lk wants "94771234567".
+  const to = payload.sms.sms_type === "phone_change" ? payload.user.phone_change || payload.user.phone : payload.user.phone;
+  if (!to) return fail(400, "No phone number to send to");
+  const recipient = to.replace(/\D/g, "");
   const message = `Your Garaj code is ${payload.sms.otp}. Don't share it with anyone.`;
 
   try {
