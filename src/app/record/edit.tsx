@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { X } from "lucide-react-native";
+import { Receipt, X } from "lucide-react-native";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -67,6 +67,7 @@ export default function EditRecord() {
   // Touching a flagged field counts as checking it.
   const checked = (f: DraftField) => setFlagged((list) => list.filter((x) => x !== f));
   const canRestartBars = (kind === "service" || kind === "repair") && items.length > 0;
+  const billPath = existing?.billPath ?? draft?.billPath;
 
   async function save() {
     const lkr = parseAmount(amount);
@@ -148,6 +149,15 @@ export default function EditRecord() {
               {vehicleName(vehicle)}
             </Txt>
           </View>
+
+          {billPath ? (
+            <Button
+              title={t("billView.open")}
+              kind="secondary"
+              icon={Receipt}
+              onPress={() => router.push({ pathname: "/bill/view", params: { path: billPath } })}
+            />
+          ) : null}
 
           {draft ? (
             <Txt className="text-ink-muted">

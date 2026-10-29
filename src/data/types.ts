@@ -52,5 +52,6 @@ export type LogRecord = {
   date: string; // ISO date
   amountLkr: number;
   litres?: number; // fuel entries
+  billPath?: string; // object path in the "bills" bucket, for entries read from a bill photo
   pending?: boolean; // saved on the phone, waiting for a connection
 };
