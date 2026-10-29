@@ -14,7 +14,7 @@ export async function shrinkPhoto(uri: string) {
   return saved.uri;
 }
 
-type Bucket = "vehicle-photos" | "documents";
+type Bucket = "vehicle-photos" | "documents" | "bills";
 
 /**
  * Uploads a picked photo as "<garageId>/<ownerId>-<timestamp>.jpg" and returns that object path.
@@ -51,3 +51,12 @@ export const uploadDocument = (garageId: string, renewalId: string, uri: string)
   uploadPhoto("documents", garageId, renewalId, uri);
 export const removeDocument = (path?: string) => removePhoto("documents", path);
 export const signDocumentPaths = (paths: string[]) => signPaths("documents", paths);
+
+/** Bill photos from Snap a bill. Signed one at a time when someone opens one, not with the garage. */
+export async function signBill(path: string) {
+  const { data, error } = await supabase.storage.from("bills").createSignedUrl(path, LINK_SECONDS);
+  if (error) throw error;
+  return data.signedUrl;
+}
+/** Only owners and editors may remove bills; for anyone else this quietly does nothing. */
+export const removeBill = (path?: string) => removePhoto("bills", path);
