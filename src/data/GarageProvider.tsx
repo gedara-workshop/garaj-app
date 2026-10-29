@@ -4,6 +4,7 @@ import { Alert, AppState } from "react-native";
 import { useAuth } from "./AuthProvider";
 import { readBill as readBillPhoto, type BillDraft, type ReadBill } from "./bill";
 import {
+  removeBill,
   removeDocument,
   removeVehiclePhoto,
   signDocumentPaths,
@@ -114,6 +115,7 @@ type RecordRow = {
   happened_on: string;
   amount_lkr: number | string;
   litres: number | string | null;
+  bill_path: string | null;
 };
 
 const toVehicle = (r: VehicleRow, photoUrl?: string): Vehicle => ({
@@ -163,6 +165,7 @@ const toRecord = (r: RecordRow): LogRecord => ({
   date: r.happened_on,
   amountLkr: Number(r.amount_lkr), // numeric columns can come back as strings
   litres: r.litres == null ? undefined : Number(r.litres),
+  billPath: r.bill_path ?? undefined,
 });
 
 async function fetchGarage(userId: string): Promise<GarageData> {
@@ -471,11 +474,13 @@ export function GarageProvider({ children }: { children: ReactNode }) {
 
   const deleteRecord = useCallback<Garage["deleteRecord"]>(
     async (recordId) => {
+      const billPath = query.data?.records.find((r) => r.id === recordId)?.billPath;
       const { error } = await supabase.from("records").delete().eq("id", recordId);
       if (error) throw error;
+      await removeBill(billPath);
       await queryClient.invalidateQueries({ queryKey });
     },
-    [queryClient, queryKey]
+    [queryClient, queryKey, query.data]
   );
 
   const saveServiceItems = useCallback<Garage["saveServiceItems"]>(
